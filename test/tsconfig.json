@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "files": [ "test-edit-box.ts", "mock-createjs-module.ts"],
+  "include": [ "test/*.ts"],
+  "compilerOptions": {
+      "outDir": "./dist",
+      "rootDirs": [".", "./src"]
+  }
+}
