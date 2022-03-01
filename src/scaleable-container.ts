@@ -70,7 +70,7 @@ export class ScaleableContainer extends Container {
     let contr = this
     let stage = contr.stage;
     let di: number = 0 // accumulate scroll increments
-    let mouseWheelHandler = ((e: WheelEvent) => {
+    const mouseWheelHandler = ((e: WheelEvent) => {
       let pmx: number = stage.mouseX / stage.scaleX;
       let pmy: number = stage.mouseY / stage.scaleY;
       let p: Point = new Point(pmx, pmy);
@@ -159,20 +159,24 @@ export class ScaleableContainer extends Container {
     return this.getScale(this.scaleNdx + di);   // new scale
   }
   /** zoom to the scale[si] */
-  setScaleIndex(si: number, p?: XY): void {
+  setScaleIndex(si: number, xy?: XY): void {
     let os = this.getScale();
     let ns = this.getScale(si);
-    this.scaleInternal(os, ns, p);
+    this.scaleInternal(os, ns, xy);
+  }
+  setScaleXY(si: number, xy: XY = { x: 0, y: 0 }) {
+    this.setScaleIndex(si)
+    this.x = xy.x; this.y = xy.y
   }
   /** Scale this.cont by the indicated scale factor around the given XY.
    * @param di: +1/-1 to increase/decrease scale; 0 to reset to scale0 @ XY
-   * @param p:  scale around this point (so 'p' does not move on display) = {0,0}
+   * @param xy:  scale around this point (so 'p' does not move on display) = {0,0}
    */
-  scaleContainer(di: number, p?: XY): void {
+  scaleContainer(di: number, xy?: XY): void {
     let os: number = this.getScale();   // current -> old / original scale
     let ns: number = this.incScale(di);
     if (di == 0) { os = 0; ns = this.getScale(this.initIndex) }
-    this.scaleInternal(os, ns, p);
+    this.scaleInternal(os, ns, xy);
   }
   /** convert from os to ns; if os=0 then reset to ns 
    * unscaleObj all this._unscale objects.
@@ -180,18 +184,18 @@ export class ScaleableContainer extends Container {
    * @param ns newScale
    * @param p  fixed point around which to scale; default: (0,0) OR when os==0: reset to (x,y)
    */
-  scaleInternal(os: number, ns: number, p?: XY): void {
+  scaleInternal(os: number, ns: number, p: XY = { x: 0, y: 0}): void {
     let sc = this;
     //console.log(stime(this, ".scaleInternal:"), cont, os, this.scaleNdx, ns);
-    let px = (p ? p.x : 0);   // cont.x0 === 0
-    let py = (p ? p.y : 0);   // Hmm: can we remove (x0,y0) and just use regXY to offset wrt stage?
+    // let px = (p ? p.x : 0);   // cont.x0 === 0
+    // let py = (p ? p.y : 0);   // Hmm: can we remove (x0,y0) and just use regXY to offset wrt stage?
     //console.log(stime(this, ".scaleInternal: p="), p);
     if (os == 0) {                  // special case to reset origin
-      sc.x = px;
-      sc.y = py;
+      sc.x = p.x;
+      sc.y = p.y;
     } else {                        // else: scale around given [mouse] point
-      sc.x = (px + (sc.x - px) * ns / os);
-      sc.y = (py + (sc.y - py) * ns / os);
+      sc.x = (p.x + (sc.x - p.x) * ns / os);
+      sc.y = (p.y + (sc.y - p.y) * ns / os);
     }
     sc.scaleX = sc.scaleY = ns;
     // console.log(stime(this, ".scaleInternal:   os="), os.toFixed(4)+" ns="+ns.toFixed(4)+" scale="+scale.toFixed(4)
