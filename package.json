@@ -7,7 +7,7 @@
     "dist"
   ],
   "scripts": {
-    "pub": "npm run build; npm version patch; npm publish --scope public",
+    "pub": "npm run build; npm version patch; npm publish --access public",
     "testEdit": "test/testEditBox.sh",
     "test": "jest --runInBand --force-exit --detectOpenHandles --verbose",
     "clean": "rm -f dist/*",

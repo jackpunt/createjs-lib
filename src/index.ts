@@ -1,5 +1,4 @@
 // The barrel file
-export * from '@thegraid/common-lib'
 export * from './createjs-functions'
 export * from './dragger'
 export * from './dropdown'
