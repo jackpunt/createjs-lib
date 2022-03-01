@@ -1,5 +1,5 @@
 import { Container, Shape, Text } from "createjs-module"
-import { C, F, XYWH } from "@thegraid/common-lib"
+import { C, F, XYWH } from "."
 import { KeyBinder, Binding  } from "./key-binder";
 
 /** a Container with a [rectangle] Shape and a Text.

@@ -1,6 +1,5 @@
 import { Container, Text } from "createjs-module";
-import { F, stime } from "@thegraid/common-lib"
-import { DropdownChoice, DropdownItem, DropdownStyle } from "."
+import { F, DropdownChoice, DropdownItem, DropdownStyle, stime } from ".";
 
 export type ParamType = any; // string | number | boolean
 /** Supplied by user */

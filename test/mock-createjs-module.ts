@@ -1,5 +1,5 @@
 import type * as createjs from 'createjs-module'
-import { className, stime } from '@thegraid/common-lib';
+import { className, stime } from './src';
 export class EventDispatcher implements createjs.EventDispatcher {
   addEventListener(type: string, listener: (eventObj: Object) => boolean, useCapture?: boolean): Function;
   addEventListener(type: string, listener: (eventObj: Object) => void, useCapture?: boolean): Function;
