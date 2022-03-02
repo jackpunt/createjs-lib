@@ -201,22 +201,24 @@ export class KeyBinder extends EventDispatcher {
   globalSetKeyFromChar(str: string, bind: Binding) {
     return this.globalSetKey(this.getKeyCodeFromChar(str), bind);
   }
-
-  localSetKey(scope: object, kcode: number|string, bind: Binding) {
-    if (typeof kcode === 'string') kcode = KeyBinder.keyCode(kcode)
-    return this._bindKey(this.getLocalKeymap(scope), kcode, bind);
+  setKey(key: number|string|RegExp, bind: Binding, scope?: object) {
+    if (key instanceof RegExp) return this.localBindToRegex(scope, key, bind)
+    if (typeof key === 'string') key = this.getKeyCodeFromChar(key)
+    return this._bindKey(this.getKeymap(scope), key, bind);
   }
+
   localSetKeyFromChar(scope: object, str: string, bind: Binding) {
-    return this._bindKey(this.getLocalKeymap(scope), this.getKeyCodeFromChar(str), bind);
+    return this._bindKey(this.getKeymap(scope), this.getKeyCodeFromChar(str), bind);
   }
   localBindToRegex(scope: object, regex: RegExp, bind: Binding) {
-    let keymap = this.getLocalKeymap(scope)
+    let keymap = this.getKeymap(scope)
     let rv = this._bindRegex(keymap, regex, bind)
     this.details && console.log(`localBindToRegex`, keymap, keymap.regexs, keymap.regexs[0])
     return rv
   }
 
-  getLocalKeymap(scope: object): Keymap  {
+  getKeymap(scope: object): Keymap  {
+    if (!scope) return this.keymap
     let keymap = scope["_keymap"]
     if (!keymap) scope["_keymap"] = keymap = Array<Binding>()
     return keymap as Keymap
@@ -247,7 +249,7 @@ export class KeyBinder extends EventDispatcher {
    * @param e optional KeyboardEvent for logging
    */
   dispatchKeyCode(kcode: number, e?: string | KeyboardEvent): boolean {
-    let keymap: Keymap = !!this.focus ? this.getLocalKeymap(this.focus) : this.keymap
+    let keymap: Keymap = !!this.focus ? this.getKeymap(this.focus) : this.keymap
     let keyStr = (typeof e === 'string') ? e : (e as KeyboardEvent).key
     let bind: Binding = keymap[kcode] 
     if (!bind && !!keymap.regexs && keymap.regexs.length > 0) {

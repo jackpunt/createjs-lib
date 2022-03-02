@@ -1,8 +1,10 @@
 import { Binding, KeyBinder } from './src'
 
-let kb = new KeyBinder()
+let kb0 = new KeyBinder()
+let kb = KeyBinder.keyBinder; // assert( kb === kb0)
+
 function setKey(codeStr: string, bind: Binding): number {
-  let kcode = disp.globalSetKeyFromChar(codeStr, bind)
+  let kcode = kb.setKey(codeStr, bind) as number
   console.log('bind', { codeStr, kcode, func: bind.func })
   return kcode
 }
@@ -14,7 +16,6 @@ function onKeyEvent(argVal?: any, evt?: KeyboardEvent | string) {
   // KeyBinder.keyBinder.showKeyEvent(codek, e);
   return false;
 }
-let disp = KeyBinder.keyBinder;
 let keyback: Binding = { func: onKeyEvent }
 
 let ev = KeyBinder.keyEvent

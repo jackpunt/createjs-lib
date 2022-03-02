@@ -26,18 +26,18 @@ export class EditBox extends Container {
   }
 
   init() {
-    let selfKey: RegExp = /\S| /
-    KeyBinder.keyBinder.localBindToRegex(this, selfKey, { thisArg: this, func: this.selfInsert })
-    KeyBinder.keyBinder.localSetKey(this, "Backspace", { thisArg: this, func: this.delBack })
-    KeyBinder.keyBinder.localSetKey(this, "Enter", { thisArg: this, func: this.newline })
-    KeyBinder.keyBinder.localSetKey(this, "ArrowRight", { thisArg: this, func: this.movePoint, argVal: 1 })
-    KeyBinder.keyBinder.localSetKey(this, "ArrowLeft", { thisArg: this, func: this.movePoint, argVal: -1 })
-    KeyBinder.keyBinder.localSetKeyFromChar(this, "C-f", { thisArg: this, func: this.movePoint, argVal: 1 })
-    KeyBinder.keyBinder.localSetKeyFromChar(this, "C-b", { thisArg: this, func: this.movePoint, argVal: -1 })
-    KeyBinder.keyBinder.localSetKeyFromChar(this, "C-e", { thisArg: this, func: this.movePoint, argVal: 'max' })
-    KeyBinder.keyBinder.localSetKeyFromChar(this, "C-a", { thisArg: this, func: this.movePoint, argVal: 'min' })
-    KeyBinder.keyBinder.localSetKeyFromChar(this, "C-k", { thisArg: this, func: this.kill })
-    KeyBinder.keyBinder.localSetKeyFromChar(this, "C-y", { thisArg: this, func: this.yank})
+    let selfKey: RegExp = /\S| /, scope = this
+    KeyBinder.keyBinder.setKey(selfKey, { thisArg: this, func: this.selfInsert }, scope)
+    KeyBinder.keyBinder.setKey("Enter", { thisArg: this, func: this.newline }, scope)
+    KeyBinder.keyBinder.setKey("Backspace", { thisArg: this, func: this.delBack }, scope)
+    KeyBinder.keyBinder.setKey("ArrowRight", { thisArg: this, func: this.movePoint, argVal: 1 }, scope)
+    KeyBinder.keyBinder.setKey("ArrowLeft", { thisArg: this, func: this.movePoint, argVal: -1 }, scope)
+    KeyBinder.keyBinder.setKey("C-f", { thisArg: this, func: this.movePoint, argVal: 1 }, scope)
+    KeyBinder.keyBinder.setKey("C-b", { thisArg: this, func: this.movePoint, argVal: -1 }, scope)
+    KeyBinder.keyBinder.setKey("C-e", { thisArg: this, func: this.movePoint, argVal: 'max' }, scope)
+    KeyBinder.keyBinder.setKey("C-a", { thisArg: this, func: this.movePoint, argVal: 'min' }, scope)
+    KeyBinder.keyBinder.setKey("C-k", { thisArg: this, func: this.kill }, scope)
+    KeyBinder.keyBinder.setKey("C-y", { thisArg: this, func: this.yank}, scope)
   }
   setText(text?: string, fontSize?: number, fontName?: string, color: string = C.black) {
     this.text = new Text(text, F.fontSpec(fontSize, fontName), color)
