@@ -31,7 +31,7 @@ import { S, stime } from '.'
  */
 
 type KeyBits = { shift?: boolean, ctrl?: boolean, meta?: boolean, alt?: boolean, keyup?: boolean }
-type BindFunc = (arg?: any, e?: KeyboardEvent | string) => void
+type BindFunc = (arg?: any, e?: KeyboardEvent | string) => boolean | void
 /** 
  * kcode is bound to Binding, invokes: func.call(scope, argVal, event) 
  */
@@ -221,18 +221,18 @@ export class KeyBinder extends EventDispatcher {
    * Text/EditBox can listen for 'Enter' and release focus (blur) [also: onCollapse of menu]
    */
   dispatchKey(e: KeyboardEvent) {
-    this.dispatchKeyCode(this.getKeyCodeFromEvent(e), e) // encode all the C-M-A-Shift bits:
+    return this.dispatchKeyCode(this.getKeyCodeFromEvent(e), e) // encode all the C-M-A-Shift bits:
   }
   /** invoke keyBound function AS IF kcode(str) was received. */
   dispatchChar(str: string) {
-    this.dispatchKeyCode(this.getKeyCodeFromChar(str), str) // for ex: "^-C-M-z"
+    return this.dispatchKeyCode(this.getKeyCodeFromChar(str), str) // for ex: "^-C-M-z"
   }
   /**
    * Dispatch based on keycode.
    * @param kcode extracted from KeyboardEvent, or synthesized from getKeyCodeFromChar(str)
    * @param e optional KeyboardEvent for logging
    */
-  dispatchKeyCode(kcode: number, e?: string | KeyboardEvent) {
+  dispatchKeyCode(kcode: number, e?: string | KeyboardEvent): boolean {
     let keymap: Keymap = !!this.focus ? this.getLocalKeymap(this.focus) : this.keymap
     let keyStr = (typeof e === 'string') ? e : (e as KeyboardEvent).key
     let bind: Binding = keymap[kcode] 
@@ -249,8 +249,9 @@ export class KeyBinder extends EventDispatcher {
       console.log(stime(this, ".dispatchKeyCode:"), 
       { keyStr, bind, kcode, keymap: this.showBindings(keymap), regexs: keymap.regexs, focus: this.focus }, e);
     if (!!bind && typeof (bind.func) == 'function') {
-      bind.func.call(bind.thisArg, bind.argVal, e)
+      return bind.func.call(bind.thisArg, bind.argVal, e) || false
     }
+    return false
   }
 
   showBindings(keymap: Keymap) {
