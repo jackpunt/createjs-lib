@@ -31,6 +31,7 @@ import { S, stime } from '.'
  */
 
 type KeyBits = { shift?: boolean, ctrl?: boolean, meta?: boolean, alt?: boolean, keyup?: boolean }
+/** unless BindFunc returns true, then e.preventDefault() */
 type BindFunc = (arg?: any, e?: KeyboardEvent | string) => boolean | void
 /** 
  * kcode is bound to Binding, invokes: func.call(scope, argVal, event) 
@@ -248,10 +249,12 @@ export class KeyBinder extends EventDispatcher {
     if (this.details) // TODO: maybe use console.debug()
       console.log(stime(this, ".dispatchKeyCode:"), 
       { keyStr, bind, kcode, keymap: this.showBindings(keymap), regexs: keymap.regexs, focus: this.focus }, e);
+    let rv: boolean;
     if (!!bind && typeof (bind.func) == 'function') {
-      return bind.func.call(bind.thisArg, bind.argVal, e) || false
+      rv = bind.func.call(bind.thisArg, bind.argVal, e) // false | undefined indicates preventDefault
+      if (rv !== true && e instanceof Event) e.preventDefault()
     }
-    return false
+    return rv // indicating no preventDefault...
   }
 
   showBindings(keymap: Keymap) {
