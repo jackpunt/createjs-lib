@@ -88,7 +88,7 @@ export class KeyBinder extends EventDispatcher {
     let bits = [ALT, META, CTRL, KEYUP, SHIFT].map( bit => xbit(keycode, bit))
     let ccode = String.fromCharCode(keycode)
     let str = KeyBinder.codeKey(keycode) || (bits[4] ? ccode : ccode.toLowerCase());
-    this.details && console.log( `keycode(${keycode}) => string(${str})`)
+    //this.details && console.log( `keycode(${keycode}) => string(${str})`)
     let mods = ['A-', 'M-', 'C-', '^-']
     mods.forEach((mod, n) => {if (bits[n]) {str = `${mod}${str}`}})
     return str
@@ -102,35 +102,37 @@ export class KeyBinder extends EventDispatcher {
    */
   getKeyCodeFromChar(str: string): number {
     const UPPER = /[A-Z]/; const LOWER = /[a-z]/
-    let obj: KeyBits = {}
+    let bits: KeyBits = {}
     if (str.startsWith("^-")) {
-      obj.keyup = true; str = str.substring(2);
+      bits.keyup = true; str = str.substring(2);
     }
     if (str.startsWith("C-")) {
-      obj.ctrl = true; str = str.substring(2);
+      bits.ctrl = true; str = str.substring(2);
     }
     if (str.startsWith("M-")) {
-      obj.meta = true; str = str.substring(2);
+      bits.meta = true; str = str.substring(2);
     }
     if (str.startsWith("A-")) {
-      obj.alt = true; str = str.substring(2);
+      bits.alt = true; str = str.substring(2);
     }
     if (str.length == 1) {
-      let char: string = str.charAt(0); // Assert: a single [ASCII/utf8] char in the string
-      if (UPPER.exec(char)) {
-        obj.shift = true;
-      } else if (LOWER.exec(char)) {
-        char = char.toUpperCase();
+      // Assert: a single [ASCII/utf8] char in the string
+      if (UPPER.exec(str)) {
+        bits.shift = true;
+      } else if (LOWER.exec(str)) {
+        str = str.toUpperCase();
       }
-      return this.getKeyCode(char.charCodeAt(0), obj); // numeric unicode for char (OR key)
-    } else {
-      return KeyBinder.keyCode(str) // numeric code for special/named chars
     }
-
+    return this.getKeyCode(KeyBinder.keyCode(str), bits); // numeric unicode for char (OR key)
   }
-  /** numeric kcode corresponding to named event.key */
+  /** event.key name -> numeric kcode. */
   static keyCode(key: string): number | undefined {
-    return (key.length == 1) ? key.charAt(0) :KeyBinder.key_keyCode[key]
+    return (key.length == 1) ? key.charCodeAt(0) : KeyBinder.key_keyCode[key]
+  }
+  /** event.code name -> numeric kcode. */
+  static codeCode(code: string): number | undefined {
+    let key = code.startsWith('Key') ? code.substring(3).toLowerCase() : code
+    return KeyBinder.keyCode(key) // key can be 'Alt'
   }
   static codeKey(kcode: number) {
     let keyCode = Object.entries(KeyBinder.key_keyCode).find(([key, code]) => code == kcode)
@@ -138,14 +140,22 @@ export class KeyBinder extends EventDispatcher {
   }
   // if you want to replace deprecated e.keycode:
   static key_keyCode = {
-    Bel: 7, Backspace: 8, Tab: 9, Enter: 13, Control: 17, Shift: 16,
+    Bel: 7, Backspace: 8, Tab: 9, Enter: 13, Control: 17, Shift: 16, Alt: 18,
     AltLeft: 18, AltRight: 19, Escape: 27, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39,
     ArrowDown: 40, MetaLeft: 91, MetaRight: 93 } // '[' : 219
+
+  static keyEvent(key: string, code: string, keyCode:number, shiftKey: boolean, ctrlKey: boolean, metaKey: boolean, altKey: boolean, keyup: boolean): KeyboardEvent {
+    let rv = {key, code, keyCode, shiftKey, ctrlKey, metaKey, altKey, type: (keyup? 'keyup':'keydown')}
+    return rv as unknown as KeyboardEvent
+  }
+
+  /** get our numeric encoding of the key in the KeyboardEvent. */
   getKeyCodeFromEvent(e: KeyboardEvent): number {
     // Shift-down = 528 = 16 + 512 (because e.shiftKey is set on keydown)
     // Shift-up = 8208 = 16 + 8192 (because e.keyup)
     // Use key name; but use numeric code for non-char keys: "Shift", "Enter" or whatever
-    let key = e.key, kcode = (key.length == 1) ? this.getKeyCodeFromChar(key) : e.keyCode
+    let key = e.altKey ? e.code : e.key  // dodge Alt+key which make special/unicode 
+    let kcode = (key.length == 1) ? this.getKeyCodeFromChar(key) : e.keyCode
     let keycode = this.getKeyCode(
       kcode, {
       shift: e.shiftKey,
@@ -157,7 +167,7 @@ export class KeyBinder extends EventDispatcher {
     return keycode
   }
 
-  _bindKey(keymap: object, kcode: number, bind: Binding) {
+  _bindKey(keymap: object, kcode: number, bind: Binding): number {
     //console.log(stime(this, "_bindKey: "), { kcode: kcode, func: bind, scope: keymap["scope"] });
     if (typeof (bind.func) == 'function') {
       keymap[kcode] = bind
@@ -169,16 +179,18 @@ export class KeyBinder extends EventDispatcher {
     } else {
       delete keymap[kcode];
     }
+    return kcode
   }
-  _bindRegex(keymap: Keymap, regex: RegExp, bind: Binding) {
+  _bindRegex(keymap: Keymap, regex: RegExp, bind: Binding): RegExp {
     if (!keymap.regexs) keymap.regexs = []
     keymap.regexs.unshift({ regex, bind })
+    return regex
   }
 
   // arg:function crashes tsc [3/2017]
   // func:function(e, p, k)
   globalSetKey(kcode: number, bind: Binding) {
-    this._bindKey(this.keymap, kcode, bind)
+    return this._bindKey(this.keymap, kcode, bind)
   }
 
   /**
@@ -187,20 +199,21 @@ export class KeyBinder extends EventDispatcher {
    * @param bind a Binding {thisArg: keymap, func: ()=>void, argVal?: arg}
    */
   globalSetKeyFromChar(str: string, bind: Binding) {
-    this.globalSetKey(this.getKeyCodeFromChar(str), bind);
+    return this.globalSetKey(this.getKeyCodeFromChar(str), bind);
   }
 
   localSetKey(scope: object, kcode: number|string, bind: Binding) {
     if (typeof kcode === 'string') kcode = KeyBinder.keyCode(kcode)
-    this._bindKey(this.getLocalKeymap(scope), kcode, bind);
+    return this._bindKey(this.getLocalKeymap(scope), kcode, bind);
   }
   localSetKeyFromChar(scope: object, str: string, bind: Binding) {
-    this._bindKey(this.getLocalKeymap(scope), this.getKeyCodeFromChar(str), bind);
+    return this._bindKey(this.getLocalKeymap(scope), this.getKeyCodeFromChar(str), bind);
   }
   localBindToRegex(scope: object, regex: RegExp, bind: Binding) {
     let keymap = this.getLocalKeymap(scope)
-    this._bindRegex(keymap, regex, bind)
+    let rv = this._bindRegex(keymap, regex, bind)
     this.details && console.log(`localBindToRegex`, keymap, keymap.regexs, keymap.regexs[0])
+    return rv
   }
 
   getLocalKeymap(scope: object): Keymap  {
@@ -257,7 +270,7 @@ export class KeyBinder extends EventDispatcher {
     return rv // indicating no preventDefault...
   }
 
-  showBindings(keymap: Keymap) {
+  showBindings(keymap: Keymap): string[] {
     let showBind = (b: Binding) => `${this.keyCodeToString(b['kcode'])}->{${b.thisArg}.${b.func.name}(${b.argVal})}`
     return (keymap as Binding[]).map(b => showBind(b))
   }
@@ -280,6 +293,6 @@ export class KeyBinder extends EventDispatcher {
   }
 
   showKeyEvent(str: string, e: KeyboardEvent) {
-    console.log(stime(this, `.showKeyEvent ${str}`), { Key: JSON.stringify(e.key), Kcode: this.getKeyCodeFromEvent(e), event: e });
+    console.log(stime(this, `.showKeyEvent`), { Bind: str, Key: e.key, Kcode: this.getKeyCodeFromEvent(e), event: e });
   }
 }
