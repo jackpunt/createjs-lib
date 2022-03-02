@@ -158,25 +158,44 @@ export class ScaleableContainer extends Container {
   incScale(di: number): number {
     return this.getScale(this.scaleNdx + di);   // new scale
   }
-  /** zoom to the scale[si] */
-  setScaleIndex(si: number, xy?: XY): void {
+  /** zoom to the scale[si] 
+   * @return the new scale
+   */
+  setScaleIndex(si: number, xy?: XY): number {
     let os = this.getScale();
     let ns = this.getScale(si);
-    this.scaleInternal(os, ns, xy);
+    return this.scaleInternal(os, ns, xy);
   }
-  setScaleXY(si: number, xy: XY = { x: 0, y: 0 }) {
+  /**
+   * rescale, set origin, position viewport
+   * @param si new scale index; [findIndex(initScale)]
+   * @param xy align xy at parent(0,0) [0,0]
+   * @param sxy offset xy to screen position sxy [0,0]
+   */
+  setScaleXY(si: number = this.findIndex(this.getScale(0)), xy: XY = { x: 0, y: 0 }, sxy: XY = { x: 0, y: 0 }): number {
+    let ns = (this.setScaleIndex(si), this.scaleX)
+    this.x = sxy.x - xy.x * ns; this.y = sxy.y - xy.y * ns
+    return ns
+  }
+  /**
+   * legacy setScaleXY
+   * @param si 
+   * @param xy set this.{x,y} [0,0]
+   */
+  setScaleXY0(si: number, xy: XY = { x: 0, y: 0 }) {
     this.setScaleIndex(si)
     this.x = xy.x; this.y = xy.y
   }
   /** Scale this.cont by the indicated scale factor around the given XY.
    * @param di: +1/-1 to increase/decrease scale; 0 to reset to scale0 @ XY
    * @param xy:  scale around this point (so 'p' does not move on display) = {0,0}
+   * @return the new scale
    */
-  scaleContainer(di: number, xy?: XY): void {
+  scaleContainer(di: number, xy?: XY): number {
     let os: number = this.getScale();   // current -> old / original scale
     let ns: number = this.incScale(di);
     if (di == 0) { os = 0; ns = this.getScale(this.initIndex) }
-    this.scaleInternal(os, ns, xy);
+    return this.scaleInternal(os, ns, xy);
   }
   /** convert from os to ns; if os=0 then reset to ns 
    * unscaleObj all this._unscale objects.
@@ -184,7 +203,7 @@ export class ScaleableContainer extends Container {
    * @param ns newScale
    * @param p  fixed point around which to scale; default: (0,0) OR when os==0: reset to (x,y)
    */
-  scaleInternal(os: number, ns: number, p: XY = { x: 0, y: 0}): void {
+  scaleInternal(os: number, ns: number, p: XY = { x: 0, y: 0}): number {
     let sc = this;
     //console.log(stime(this, ".scaleInternal:"), cont, os, this.scaleNdx, ns);
     // let px = (p ? p.x : 0);   // cont.x0 === 0
@@ -208,8 +227,8 @@ export class ScaleableContainer extends Container {
     }
     //console.log(stime(this, ".invScale="), this.invScale, this.scaleNdx, ns*this.invScale);
     this.unscaleAll();
-    if (ns != os)
-      this.dispatchEvent(new ScaleEvent(S.scaled, ns, this.scaleNdx))
+    if (ns != os) this.dispatchEvent(new ScaleEvent(S.scaled, ns, this.scaleNdx))
+    return ns
   }
   /** Scalable.container.addChild() */
   addChildXY(child: DisplayObject, x: number, y: number): DisplayObject {
