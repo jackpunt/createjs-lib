@@ -29,7 +29,7 @@ import { S, stime } from '.'
 
  *
  */
-
+type Cast<X, Y> = X extends Y ? X : Y
 type KeyBits = { shift?: boolean, ctrl?: boolean, meta?: boolean, alt?: boolean, keyup?: boolean }
 /** unless BindFunc returns true, then e.preventDefault() */
 type BindFunc = (arg?: any, e?: KeyboardEvent | string) => boolean | void
@@ -201,7 +201,8 @@ export class KeyBinder extends EventDispatcher {
   globalSetKeyFromChar(str: string, bind: Binding) {
     return this.globalSetKey(this.getKeyCodeFromChar(str), bind);
   }
-  setKey(key: number|string|RegExp, bind: Binding, scope?: object) {
+
+  setKey(key: number | string | RegExp, bind: Binding, scope?: object): Exclude<typeof key, string> {
     if (key instanceof RegExp) return this.localBindToRegex(scope, key, bind)
     if (typeof key === 'string') key = this.getKeyCodeFromChar(key)
     return this._bindKey(this.getKeymap(scope), key, bind);
