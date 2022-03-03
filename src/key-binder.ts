@@ -201,8 +201,9 @@ export class KeyBinder extends EventDispatcher {
   globalSetKeyFromChar(str: string, bind: Binding) {
     return this.globalSetKey(this.getKeyCodeFromChar(str), bind);
   }
-
-  setKey(key: number | string | RegExp, bind: Binding, scope?: object): Exclude<typeof key, string> {
+  setKey(key: RegExp, bind: Binding, scope?: object): RegExp
+  setKey(key: number | string, bind: Binding, scope?: object): number
+  setKey(key: number | string | RegExp, bind: Binding, scope?: object): number | RegExp {
     if (key instanceof RegExp) return this.localBindToRegex(scope, key, bind)
     if (typeof key === 'string') key = this.getKeyCodeFromChar(key)
     return this._bindKey(this.getKeymap(scope), key, bind);

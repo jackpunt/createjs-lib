@@ -4,7 +4,7 @@ let kb0 = new KeyBinder()
 let kb = KeyBinder.keyBinder; // assert( kb === kb0)
 
 function setKey(codeStr: string, bind: Binding): number {
-  let kcode = kb.setKey(codeStr, bind) as number
+  let kcode = kb.setKey(codeStr, bind)
   console.log('bind', { codeStr, kcode, func: bind.func })
   return kcode
 }
