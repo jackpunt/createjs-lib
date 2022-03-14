@@ -42,9 +42,13 @@ export interface DragInfo {
   rotation: number,      // obj.rotation before dragging
   scope: Object,        // 'this' for dragFunc/dropFunc()
 }
-type DnDFunc = (c: DisplayObject | Container, ctx?: DragInfo) => void
+const S_stagemousemove = 'stagemousemove'
+const S_dragAsDispObj = 'dragAsDispObj'
+const S_clickToDrag = 'clickToDrag'
 
+type DnDFunc = (c: DisplayObject | Container, ctx?: DragInfo) => void
 type DragArgs = { scope: Object, dragfunc: DnDFunc, dropfunc: DnDFunc, asDispObj?: boolean, dragCtx?: DragInfo }
+
 /**
  * expect a singleton instance to control drag/drop on a single ScalableContainer
  * 
@@ -89,7 +93,7 @@ export class Dragger {
     let dxy = { x: e.localX - obj.regX, y: e.localY - obj.regY }  // offset from mouse to regXY(0,0)
 
     // for Citymap, all CardContainers are mouse-transparent, so obj == ScaleableContainer, obj.parent == stage
-    if ((obj instanceof Container) && !obj["dragAsDispObj"]) {
+    if ((obj instanceof Container) && !obj[S_dragAsDispObj]) {
       // Drag the whole [Scaleable]Container 
       // (cannot add to DragCont, because DragCont is child of ScaleableContainer!)
       // [obj == sc, THE instanceof ScaleableContainer], this.parent == stage
@@ -144,6 +148,7 @@ export class Dragger {
       //console.log(stime(this, ".moveCont:"), {orig:orig, e:e, pt:pt, sx: obj.scaleX, obj:obj})
     }
 
+    e.stopPropagation()
     // move obj to follow mouse:
     if (obj == dragCtx.targetC) {
       moveCont(obj as Container, e)   // typically: the whole ScaleableContainer
@@ -152,14 +157,12 @@ export class Dragger {
       obj.x -= dragCtx.dxy.x;
       obj.y -= dragCtx.dxy.y
     } else {
-      e.stopPropagation()
       Dragole.logEvent("unexpected currentTarget: " + obj.name);
       console.log(stime(this, ".pressmove: unexpected target:"), { obj: obj, event: e, targetC: dragCtx.targetC, targetD: dragCtx.targetC, dragCtx: Obj.fromEntriesOf(dragCtx) })
       return
     }
     //console.log(stime(this, ".pressmove: obj.x="), obj.x, "obj.y=", obj.y, "evt_pt=", evt_pt, "\n   event=", e, "\n   obj=",obj, "\n    dragCtx=", dragCtx)
     //e.preventDefault()
-    e.stopPropagation()
     //e.stopImmediatePropagation()
     if (dragfunc) {
       if (((typeof dragfunc) === "function")) {
@@ -181,10 +184,26 @@ export class Dragger {
     let { scope, dragfunc, dropfunc, asDispObj, dragCtx } = data
     let obj: DisplayObject | Container = e.currentTarget // the SC in phase-3
     data.dragCtx = undefined; // drag is done...
+    let clickToDrag = obj[S_clickToDrag]
+    let stage = obj.stage
+    if (clickToDrag && stage[S_stagemousemove]) {
+      stage.removeEventListener(S_stagemousemove, stage[S_stagemousemove] as EventListener)
+      delete stage[S_stagemousemove]
+    }
     if (!dragCtx) {
-      //console.log(stime(this, ".pressup: (no dragCtx) click event="), e)
+      //console.log(stime(this, ".pressup: (no dragCtx) click event="), { e, clickToDrag })
+      if (!!clickToDrag) {
+        let stageDrag = (e: MouseEvent, data: DragArgs) => {
+          e.currentTarget = obj
+          this.pressmove(e, data)
+        }
+        this.pressmove(e, data)  // data.dragCtx = startDrag()
+        stage[S_stagemousemove] = stage.on(S_stagemousemove, stageDrag as any, this, false, data)
+        stage[S_stagemousemove]['Aname'] = 'Dragger.stagemove'
+      }
       return     // a click, not a Drag+Drop
     }
+    e.stopPropagation()
     obj.rotation = dragCtx.rotation
     let par = dragCtx.lastCont || dragCtx.srcCont
     // last dropTarget CardContainer under the dragged Card  (or orig parent)
@@ -230,7 +249,7 @@ export class Dragger {
     // but closure binding works just fine.
 
     this.stopDragable(dispObj) // remove prior Drag listeners
-    dispObj["dragAsDispObj"] = asDispObj;
+    dispObj[S_dragAsDispObj] = asDispObj;
     let data: DragArgs = { scope, dragfunc, dropfunc, asDispObj }
 
     dispObj[S.pressmove] = dispObj.on(S.pressmove, this.pressmove, this, false, data);
@@ -239,7 +258,9 @@ export class Dragger {
     dispObj[S.pressup][S.Aname] = "Dragger.pressup"
     //console.log(stime(this, ".makeDragable: name="), dispObj.name, "dispObj=", dispObj, "\n   cont=", cont)
   }
-
+  clickToDrag(dispObj: DisplayObject, value = true) {
+    dispObj[S_clickToDrag] = value
+  }
   /** remove pressmove and pressup listenerf from dispObj. */
   stopDragable(dispObj: DisplayObject) {
     //console.log(stime(this, ".stopDragable: dispObj="), dispObj, dispObj[S.pressmove], dispObj["pressup"])
@@ -247,5 +268,7 @@ export class Dragger {
     delete dispObj[S.pressmove]
     dispObj.removeEventListener(S.pressup, (dispObj[S.pressup] as EventListener))
     delete dispObj[S.pressup]
+    delete dispObj[S_dragAsDispObj]
+    delete dispObj[S_clickToDrag]
   }
 }
