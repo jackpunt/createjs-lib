@@ -31,6 +31,7 @@ export interface DragInfo {
   nameD: string,       // name from DispObj (Card)
   srcCont: Container,  // original obj.parent (expect CardContainer)
   lastCont: Container, // latest 'dropTarget' updated when over legal dropTarget
+  event: MouseEvent,   // latest 'pressmove' or 'pressup' mouseevent
   eventX: number,      // original mouse hit: e.stageX (global coords)
   eventY: number,
   dxy: XY;             // original offset from mouse to regXY (local coords)
@@ -40,14 +41,23 @@ export interface DragInfo {
   targetC: Container,     // set if dragging whole [Scaleable]Container
   targetD: DisplayObject, // set if dragging single DisplayObject
   rotation: number,      // obj.rotation before dragging
-  scope: Object,        // 'this' for dragFunc/dropFunc()
 }
 const S_stagemousemove = 'stagemousemove'
-const S_dragAsDispObj = 'dragAsDispObj'
-const S_clickToDrag = 'clickToDrag'
-
+type OnHandler = Function
 type DnDFunc = (c: DisplayObject | Container, ctx?: DragInfo) => void
-type DragArgs = { scope: Object, dragfunc: DnDFunc, dropfunc: DnDFunc, asDispObj?: boolean, dragCtx?: DragInfo }
+type DragData = { 
+  scope: Object,        // 'this' for dragFunc/dropFunc()
+  dragfunc: DnDFunc, 
+  dropfunc: DnDFunc, 
+  dragCtx?: DragInfo, 
+  pressmove?: OnHandler, 
+  pressup?: OnHandler, 
+  stagemousemove?: OnHandler, 
+  clickToDrag?: boolean,
+  isScaleCont?: boolean, 
+}
+function getDragData(dispObj: DisplayObject): DragData { return dispObj['DragData'] }
+function setDragData(dispObj: DisplayObject, data: DragData) { return dispObj['DragData'] = data; }
 
 /**
  * expect a singleton instance to control drag/drop on a single ScalableContainer
@@ -78,10 +88,9 @@ export class Dragger {
    * @param obj e.currentTarget (the pressmove Listener object)
    * @returns 
    */
-  startDrag(e: MouseEvent, obj: DisplayObject | Container, data: DragArgs) : DragInfo {
+  startDrag(e: MouseEvent, obj: DisplayObject | Container, data: DragData) : DragInfo {
     // console.log(stime(this, ".pressmove: target.name="), e.target.name, "dragfunc?", dragfunc,
     // "\n   obj=", obj, "\n   event=", e)
-    let { scope, dragfunc, dropfunc, asDispObj, dragCtx } = data
     let par: Container = obj.parent; // original parent
     let dragCont: Container = this.dragCont;
 
@@ -93,13 +102,13 @@ export class Dragger {
     let dxy = { x: e.localX - obj.regX, y: e.localY - obj.regY }  // offset from mouse to regXY(0,0)
 
     // for Citymap, all CardContainers are mouse-transparent, so obj == ScaleableContainer, obj.parent == stage
-    if ((obj instanceof Container) && !obj[S_dragAsDispObj]) {
+    if ((obj instanceof Container) && data.isScaleCont) {
       // Drag the whole [Scaleable]Container 
       // (cannot add to DragCont, because DragCont is child of ScaleableContainer!)
       // [obj == sc, THE instanceof ScaleableContainer], this.parent == stage
+      // TODO: have DragCont NOT in ScaleableContainer: listen for scale events, localToLocal coords
       targetC = (obj as Container)
       par.setChildIndex(obj, par.numChildren - 1) // bring to top
-      scalmat = obj.getConcatenatedMatrix()   // record original scale and offsets
     } else {
       // is a DispObj [Card as Container or PlayerMarker]
       targetD = (obj as DisplayObject)
@@ -107,20 +116,20 @@ export class Dragger {
       obj.parent.localToLocal(obj.x, obj.y, dragCont, obj)    // offset to dragCont
       dragCont.addChild(obj)                                  // assert: only 1 child in dragCont; dragCont is in SC
       dragCont.parent.setChildIndex(dragCont, dragCont.parent.numChildren - 1) // dragLayer to top of SC
-      scalmat = obj.getConcatenatedMatrix()
     }
+    scalmat = obj.getConcatenatedMatrix()   // record original scale and offsets
     // in all cases, set data.dragCtx
     return data.dragCtx = {
       nameD: obj.name, lastCont: par, srcCont: par, first: true,
-      eventX: e.stageX, eventY: e.stageY, objx: obj.x, objy: obj.y, scalmat: scalmat, dxy: dxy,
-      targetC: targetC, targetD: targetD, rotation: rotation, scope: scope
+      event: e, eventX: e.stageX, eventY: e.stageY, objx: obj.x, objy: obj.y, scalmat: scalmat, dxy: dxy,
+      targetC: targetC, targetD: targetD, rotation: rotation
     } as DragInfo
     //console.log(stime(this, ".pressmove: dragCtx.lastCont.name="), dragCtx.lastCont.name, dragCtx)
     //console.log(stime(this, ".pressmove: dragCtx="), dragCtx, "\n   event=", e, dragfunc)
   }
 
-  pressmove(e: MouseEvent, data: DragArgs) {
-    let { scope, dragfunc, dropfunc, asDispObj, dragCtx } = data
+  pressmove(e: MouseEvent, data: DragData) {
+    let { dragfunc, dragCtx } = data
     if (e.target[S.doNotDrag]) return
     // use currentTarget, so non-dragable Shapes pull whole ScaleableContainer
     let obj: DisplayObject | Container = e.currentTarget;
@@ -129,45 +138,45 @@ export class Dragger {
       dragCtx = this.startDrag(e, obj, data)
     } else {
       dragCtx.first = false
+      dragCtx.event = e
     }
     /** move the whole scaleContainer, adjusting when it gets scaled. */
-    let moveCont = (obj: Container, e: MouseEvent) => {
+    let moveScaleCont = (sc: Container, e: MouseEvent) => {
+      // dragCont is child of obj == ScaleableConter:
       let dx = e.stageX - dragCtx.eventX
       let dy = e.stageY - dragCtx.eventY
       let oscalmat = dragCtx.scalmat
-      let nscalmat = obj.getConcatenatedMatrix()
-      if (nscalmat.a != oscalmat.a) { // object has been zoomed (and offset!)
-        dragCtx.objx = obj.x - dx
-        dragCtx.objy = obj.y - dy
+      let nscalmat = sc.getConcatenatedMatrix()
+      if (nscalmat.a != oscalmat.a) { // SC has been zoomed (and offset!)
+        dragCtx.objx = sc.x - dx
+        dragCtx.objy = sc.y - dy
         dragCtx.scalmat = nscalmat
       }
 
-      obj.x = dragCtx.objx + dx
-      obj.y = dragCtx.objy + dy
+      sc.x = dragCtx.objx + dx
+      sc.y = dragCtx.objy + dy
       // obj.stage.update()
-      //console.log(stime(this, ".moveCont:"), {orig:orig, e:e, pt:pt, sx: obj.scaleX, obj:obj})
+      //console.log(stime(this, ".moveCont:"), {orig, e, pt, sx: obj.scaleX, obj})
     }
 
     e.stopPropagation()
     // move obj to follow mouse:
     if (obj == dragCtx.targetC) {
-      moveCont(obj as Container, e)   // typically: the whole ScaleableContainer
+      moveScaleCont(obj as Container, e)   // typically: the whole ScaleableContainer
     } else if (obj == dragCtx.targetD) {
       obj.parent.globalToLocal(e.stageX, e.stageY, obj)
       obj.x -= dragCtx.dxy.x;
       obj.y -= dragCtx.dxy.y
     } else {
       Dragole.logEvent("unexpected currentTarget: " + obj.name);
-      console.log(stime(this, ".pressmove: unexpected target:"), { obj: obj, event: e, targetC: dragCtx.targetC, targetD: dragCtx.targetC, dragCtx: Obj.fromEntriesOf(dragCtx) })
+      console.log(stime(this, ".pressmove: unexpected target:"), { obj, event: e, targetC: dragCtx.targetC, targetD: dragCtx.targetC, dragCtx: Obj.fromEntriesOf(dragCtx) })
       return
     }
     //console.log(stime(this, ".pressmove: obj.x="), obj.x, "obj.y=", obj.y, "evt_pt=", evt_pt, "\n   event=", e, "\n   obj=",obj, "\n    dragCtx=", dragCtx)
-    //e.preventDefault()
-    //e.stopImmediatePropagation()
     if (dragfunc) {
       if (((typeof dragfunc) === "function")) {
         try {
-          dragfunc.call(dragCtx.scope || obj.parent, obj, dragCtx)
+          dragfunc.call(data.scope || obj.parent, obj, dragCtx)
         } catch (err) {
           Dragole.logEvent("dragfunc FAILED");
           console.log(stime(this, ".pressmove: dragfunc FAILED: "), dragfunc, "dragCtx=", Obj.fromEntriesOf(dragCtx), "\n   err=", err)
@@ -180,29 +189,27 @@ export class Dragger {
     obj.stage.update();
   }
 
-  pressup(e: MouseEvent, data: DragArgs) {
-    let { scope, dragfunc, dropfunc, asDispObj, dragCtx } = data
+  pressup(e: MouseEvent, data: DragData) {
+    let { dropfunc, dragCtx } = data
     let obj: DisplayObject | Container = e.currentTarget // the SC in phase-3
     data.dragCtx = undefined; // drag is done...
-    let clickToDrag = obj[S_clickToDrag]
     let stage = obj.stage
-    if (clickToDrag && stage[S_stagemousemove]) {
-      stage.removeEventListener(S_stagemousemove, stage[S_stagemousemove] as EventListener)
-      delete stage[S_stagemousemove]
+    if (data.clickToDrag && data.stagemousemove) {
+      stage.removeEventListener(S_stagemousemove, data.stagemousemove)
     }
     if (!dragCtx) {
       //console.log(stime(this, ".pressup: (no dragCtx) click event="), { e, clickToDrag })
-      if (!!clickToDrag) {
-        let stageDrag = (e: MouseEvent, data: DragArgs) => {
+      if (!!data.clickToDrag) {
+        let stageDrag = (e: MouseEvent, data: DragData) => {
           e.currentTarget = obj
           this.pressmove(e, data)
         }
         this.pressmove(e, data)  // data.dragCtx = startDrag()
-        stage[S_stagemousemove] = stage.on(S_stagemousemove, stageDrag as any, this, false, data)
-        stage[S_stagemousemove]['Aname'] = 'Dragger.stagemove'
+        data.stagemousemove = stage.on(S_stagemousemove, stageDrag, this, false, data)
       }
       return     // a click, not a Drag+Drop
     }
+    dragCtx.event = e
     e.stopPropagation()
     obj.rotation = dragCtx.rotation
     let par = dragCtx.lastCont || dragCtx.srcCont
@@ -219,7 +226,7 @@ export class Dragger {
     }
     if (typeof (dropfunc) === "function") {
       try {
-        dropfunc.call(dragCtx.scope || obj.parent, obj, dragCtx);
+        dropfunc.call(data.scope || obj.parent, obj, dragCtx);
       } catch (err) {
         let msg = "Dragger.pressup: dragfunc FAILED="
         console.error(msg, err)
@@ -232,16 +239,16 @@ export class Dragger {
  * addEventListeners for pressmove/pressup (stagemousedown/up and stagemousemove)
  * Drag this DispObj on stage.dragCont; and drop (addChild) on the orig OR new parent.
  * @param dispObj the object to become dragable
- * @param scope object to use a 'this' when calling dragfunc, dropfunc (default dispObj.parent?)
+ * @param scope object to use a 'this' when calling dragfunc, dropfunc (else dispObj.parent)
  * @param dragfunc? f(dispObj|Container, dragCtx) Default: lastCont.addChild(obj)
  * @param dropfunc? f(dispObj|Container, dragCtx)
- * @param asDispObj? true if Container should be dragged as DisplayObject
+ * @param isScaleCont? set true if Container is the ScaleableContainer (parent of this Dragger)
  */
   makeDragable(dispObj: DisplayObject | Container,
     scope?: Object,
     dragfunc?: ((c: DisplayObject | Container, ctx?: DragInfo) => void),
     dropfunc?: ((c: DisplayObject | Container, ctx?: DragInfo) => void),
-    asDispObj?: boolean) {
+    isScaleCont: boolean = false): this {
 
     // on ( type  listener  [scope]  [once=false]  [data]  [useCapture=false] )
     // https://www.createjs.com/docs/easeljs/classes/DisplayObject.html#method_on
@@ -249,26 +256,33 @@ export class Dragger {
     // but closure binding works just fine.
 
     this.stopDragable(dispObj) // remove prior Drag listeners
-    dispObj[S_dragAsDispObj] = asDispObj;
-    let data: DragArgs = { scope, dragfunc, dropfunc, asDispObj }
-
-    dispObj[S.pressmove] = dispObj.on(S.pressmove, this.pressmove, this, false, data);
-    dispObj[S.pressmove][S.Aname] = "Dragger.pressmove"
-    dispObj[S.pressup] = dispObj.on(S.pressup, this.pressup, this, false, data);
-    dispObj[S.pressup][S.Aname] = "Dragger.pressup"
+    let data: DragData = { scope, dragfunc, dropfunc, isScaleCont }
+    setDragData(dispObj, data)
+    data.pressmove = dispObj.on(S.pressmove, this.pressmove, this, false, data);
+    data.pressup = dispObj.on(S.pressup, this.pressup, this, false, data);
     //console.log(stime(this, ".makeDragable: name="), dispObj.name, "dispObj=", dispObj, "\n   cont=", cont)
+    return this
   }
   clickToDrag(dispObj: DisplayObject, value = true) {
-    dispObj[S_clickToDrag] = value
+    getDragData(dispObj).clickToDrag = value;
   }
+
+  /** prevent DisplayObject from being dragable */
+  notDragable(dispObj: DisplayObject) { dispObj[S.doNotDrag] = true }
   /** remove pressmove and pressup listenerf from dispObj. */
   stopDragable(dispObj: DisplayObject) {
-    //console.log(stime(this, ".stopDragable: dispObj="), dispObj, dispObj[S.pressmove], dispObj["pressup"])
-    dispObj.removeEventListener(S.pressmove, (dispObj[S.pressmove] as EventListener))
-    delete dispObj[S.pressmove]
-    dispObj.removeEventListener(S.pressup, (dispObj[S.pressup] as EventListener))
-    delete dispObj[S.pressup]
-    delete dispObj[S_dragAsDispObj]
-    delete dispObj[S_clickToDrag]
+    let data = getDragData(dispObj)
+    if (!!data) {
+      //console.log(stime(this, ".stopDragable: dispObj="), dispObj, data.pressmove, data.pressup)
+      dispObj.removeEventListener(S.pressmove, data.pressmove)
+      dispObj.removeEventListener(S.pressup, data.pressup)
+      dispObj.removeEventListener(S_stagemousemove, data.stagemousemove)
+      delete data.pressmove
+      delete data.pressup
+      delete data.isScaleCont
+      delete data.clickToDrag
+      setDragData(dispObj, undefined)
+    }
+    return data
   }
 }
