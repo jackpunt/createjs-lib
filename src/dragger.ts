@@ -25,7 +25,9 @@ export class Dragole {
   }
 }
 
-/** the 'dragCtx' values, and scale things. */
+/** Info about the current drag operation, shared between pressmove(s) and pressup. 
+ * drag context and scale info for isScaleCont
+ */
 export interface DragInfo {
   first: boolean,      // true on the first drag event of this dragCtx, false thereafter
   nameD: string,       // name from DispObj (Card)
@@ -65,11 +67,11 @@ function setDragData(dispObj: DisplayObject, data: DragData) { return dispObj['D
  * TODO: make instance rather than everthing static.
  */
 export class Dragger {
+  /** @param  parent for this dragger.dragCont */
   constructor(parent: Container) {
     this.makeDragCont(parent)
   }
   /** Info about the current drag operation, shared between pressmove(s) and pressup. */
-  DRAG_CONTEXT: DragInfo = undefined;   // contained in EventDispather 'data' object.
   dragCont: Container
 
   /**
@@ -98,6 +100,7 @@ export class Dragger {
     let targetC: Container;
     let targetD: DisplayObject;
     let rotation: number = obj.rotation
+    obj.rotation = 0    // else dragging goes backward due to obj.concatMatrix
 
     let dxy = { x: e.localX - obj.regX, y: e.localY - obj.regY }  // offset from mouse to regXY(0,0)
 
@@ -112,10 +115,9 @@ export class Dragger {
     } else {
       // is a DispObj [Card as Container or PlayerMarker]
       targetD = (obj as DisplayObject)
-      obj.rotation = 0    // else dragging goes backward due to obj.concatMatrix
       obj.parent.localToLocal(obj.x, obj.y, dragCont, obj)    // offset to dragCont
-      dragCont.addChild(obj)                                  // assert: only 1 child in dragCont; dragCont is in SC
-      dragCont.parent.setChildIndex(dragCont, dragCont.parent.numChildren - 1) // dragLayer to top of SC
+      dragCont.addChild(obj)                                  // assert: only 1 child in dragCont
+      dragCont.parent.setChildIndex(dragCont, dragCont.parent.numChildren - 1) // dragCont to top of SC
     }
     scalmat = obj.getConcatenatedMatrix()   // record original scale and offsets
     // in all cases, set data.dragCtx
@@ -242,13 +244,13 @@ export class Dragger {
  * @param scope object to use a 'this' when calling dragfunc, dropfunc (else dispObj.parent)
  * @param dragfunc? f(dispObj|Container, dragCtx) Default: lastCont.addChild(obj)
  * @param dropfunc? f(dispObj|Container, dragCtx)
- * @param isScaleCont? set true if Container is the ScaleableContainer (parent of this Dragger)
+ * @param isScaleCont? set true if Container is the ScaleableContainer (a parent of this Dragger)
  */
   makeDragable(dispObj: DisplayObject | Container,
     scope?: Object,
     dragfunc?: ((c: DisplayObject | Container, ctx?: DragInfo) => void),
     dropfunc?: ((c: DisplayObject | Container, ctx?: DragInfo) => void),
-    isScaleCont: boolean = false): this {
+    isScaleCont: boolean = (dispObj === this.dragCont.parent)): this {
 
     // on ( type  listener  [scope]  [once=false]  [data]  [useCapture=false] )
     // https://www.createjs.com/docs/easeljs/classes/DisplayObject.html#method_on
