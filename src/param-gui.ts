@@ -96,15 +96,19 @@ export class ParamGUI extends Container {
     this.selectValue(fieldName, value, line)
     ddc.enable()
   }
-  /** suitable entry-point for eval_params: (fieldName, value) */
+  /** when a new value is selected, push it back into the target object.
+   * auto-invoke onItemChanged() => (item)=>setValue(item) [or from spec.onChange(...) ]
+   * suitable entry-point for eval_params: (fieldName, value) 
+   */
   selectValue(fieldName: string, value: ParamType, line?: ParamLine): ParamItem | undefined {
     line = line || this.findLine(fieldName)
     if (!line) { return null }  // fieldName not available
-    // invalid value selects *current* value:
-    let choice = line.spec.choices.find(item => (item.value === value))
-    if (!choice) { return undefined } // value not available
-    line.chooser.select(choice) // will auto-invoke onItemChanged => setTableParam
-    return choice
+    // invalid value leaves *current* value:
+    let item = line.spec.choices.find(item => (item.value === value)) // {text, fieldName?, value?, bgColor?}
+    if (!!item) {
+      line.chooser.select(item) // will auto-invoke onItemChanged => setValue(item) OR onChange(...)
+    }
+    return item
   }
   target: object = undefined
   /** return target[fieldName]; suitable for override */
@@ -114,6 +118,5 @@ export class ParamGUI extends Container {
   /** update target[item.fieldname] = item.value; suitable for override */
   setValue(item: ParamItem): void {
     this.target[item.fieldName] = item.value
-    //console.log(stime(this, `.setValue: TP.${item.fieldName} =`), TP[item.fieldName], item.value, {item: item})
   }
 }
