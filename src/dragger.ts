@@ -34,10 +34,9 @@ export interface DragInfo {
   srcCont: Container,  // original obj.parent (expect CardContainer)
   lastCont: Container, // latest 'dropTarget' updated when over legal dropTarget
   event: MouseEvent,   // latest 'pressmove' or 'pressup' mouseevent
-  // eventX: number,      // original mouse hit: e.stageX (global coords)
-  // eventY: number,
-  dxy: XY;             // original offset from mouse to dispObj == {eventX, eventY}
-  dxyR: XY;            // original offset from mouse to regXY (local coords)
+  stageX0: number,      // original mouse hit: e.stageX (global coords)
+  stageY0: number,
+  dxy: XY;             // original offset from mouse to regXY (local coords)
   objx: number,        // obj location on parent (drag cont or stage)
   objy: number,
   scalmat: Matrix2D,   // original/current scale/translate (to detect change of scale/offset)
@@ -101,8 +100,7 @@ export class Dragger {
     let rotation: number = obj.rotation
     obj.rotation = 0    // else dragging goes backward due to obj.concatMatrix
 
-    let dxy = { x: event.localX, y: event.localY }  // offset from mouse to dispObj
-    let dxyR = { x: event.localX - obj.regX, y: event.localY - obj.regY }  // likely obsolete...
+    let dxy = { x: event.localX - obj.regX, y: event.localY - obj.regY } // delta from obj's origin to mouse
 
     // for Citymap, all CardContainers are mouse-transparent, so obj == ScaleableContainer, obj.parent == stage
     if ((obj instanceof Container) && data.isScaleCont) {
@@ -123,7 +121,7 @@ export class Dragger {
     // in all cases, set data.dragCtx
     return data.dragCtx = {
       nameD: obj.name, lastCont: par, srcCont: par, first: true,
-      event, objx: obj.x, objy: obj.y, scalmat, dxy, dxyR,
+      event, stageX0: event.stageX, stageY0: event.stageY, objx: obj.x, objy: obj.y, scalmat, dxy,
       targetC, targetD, rotation
     } as DragInfo
     //console.log(stime(this, ".pressmove: dragCtx.lastCont.name="), dragCtx.lastCont.name, dragCtx)
@@ -145,8 +143,8 @@ export class Dragger {
     /** move the whole scaleContainer, adjusting when it gets scaled. */
     let moveScaleCont = (sc: Container, event: MouseEvent) => {
       // dragCont is child of obj == ScaleableConter:
-      let dx = event.stageX - dragCtx.dxy.x
-      let dy = event.stageY - dragCtx.dxy.y
+      let dx = event.stageX - dragCtx.stageX0 // (stageX - stageX0)
+      let dy = event.stageY - dragCtx.stageY0
       let oscalmat = dragCtx.scalmat
       let nscalmat = sc.getConcatenatedMatrix()
       if (nscalmat.a != oscalmat.a) { // SC has been zoomed (and offset!)
@@ -206,7 +204,7 @@ export class Dragger {
           this.pressmove(e, data)
         }
         this.pressmove(e, data)  // data.dragCtx = startDrag()
-        data.stagemousemove = stage.on(S_stagemousemove, stageDrag, this, false, data)
+        data.stagemousemove = stage.on(S_stagemousemove, stageDrag as (e)=>void, this, false, data)
       }
       return     // a click, not a Drag+Drop
     }
@@ -263,8 +261,8 @@ export class Dragger {
     this.stopDragable(dispObj) // remove prior Drag listeners
     let data: DragData = { scope, dragfunc, dropfunc, isScaleCont }
     this.setDragData(dispObj, data)
-    data.pressmove = dispObj.on(S.pressmove, this.pressmove, this, false, data);
-    data.pressup = dispObj.on(S.pressup, this.pressup, this, false, data);
+    data.pressmove = dispObj.on(S.pressmove, this.pressmove as (e)=>void, this, false, data);
+    data.pressup = dispObj.on(S.pressup, this.pressup as (e)=>void, this, false, data);
     //console.log(stime(this, ".makeDragable: name="), dispObj.name, "dispObj=", dispObj, "\n   cont=", cont)
     return this
   }
