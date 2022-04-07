@@ -1,5 +1,5 @@
 import { Container, DisplayObject, MouseEvent, Matrix2D } from 'createjs-module';
-import { XY, S, Obj, stime } from '.';
+import { XY, S, Obj, stime } from '.' //'@thegraid/createjs-lib';
 
 export class Dragole {
   /** external injection point */
@@ -193,7 +193,9 @@ export class Dragger {
     let obj: DisplayObject | Container = e.currentTarget // the SC in phase-3
     data.dragCtx = undefined; // drag is done...
     let stage = obj.stage
+    //console.log(stime(this, `.pressup:`), {obj, dragCtx})
     if (data.clickToDrag && data.stagemousemove) {
+      //console.log(stime(this, `.pressup: stage.removeEventListener`), data.stagemousemove)
       stage.removeEventListener(S_stagemousemove, data.stagemousemove)
     }
     if (!dragCtx) {
@@ -269,21 +271,28 @@ export class Dragger {
   clickToDrag(dispObj: DisplayObject, value = true) {
     this.getDragData(dispObj).clickToDrag = value;
   }
-  /** Move [dragable] target to mouse as if clickToDrag at {x,y}. */
-  dragTarget(target: DisplayObject, dxy: XY = { x: 0, y: 0 }) {
+  dispatchPressup(target: DisplayObject, ctd = true) {
     let dragData = this.getDragData(target)
-    dragData.clickToDrag = true
+    dragData.clickToDrag = ctd
     let stage = target.stage, stageX = stage.mouseX, stageY = stage.mouseY
     let event = new MouseEvent(S.pressup, false, true, stageX, stageY, undefined, -1, true, stageX, stageY)
-
     target.dispatchEvent(event, target) // set dragData.dragCtx = startDrag()
-    let dragCtx = dragData.dragCtx
-    dragCtx.dxy = dxy
-    target.parent.globalToLocal(event.stageX, event.stageY, target) // move obj to stageX, stageY
-    target.x -= dragCtx.dxy.x;       // offset by -dxy
-    target.y -= dragCtx.dxy.y
-    stage.update()                   // move and show new position
-    }
+    return dragData
+  }
+  /** Move [dragable] target to mouse as if clickToDrag at {x,y}. */
+  dragTarget(target: DisplayObject, dxy: XY = { x: 0, y: 0 }) {
+    let dragData = this.dispatchPressup(target)
+    dragData.dragCtx.dxy = dxy
+    target.parent.globalToLocal(target.stage.mouseX, target.stage.mouseY, target) // move target to mouseXY
+    target.x -= dxy.x                // offset by dxy
+    target.y -= dxy.y
+    target.stage.update()            // move and show new position
+  }
+  /** Release drag target from mouse, drop on dropTarget. */
+  stopDrag() {
+    let target: DisplayObject = this.dragCont.getChildAt(0)
+    target && this.dispatchPressup(target)
+  }
 
   /** prevent DisplayObject from being dragable */
   notDragable(dispObj: DisplayObject) { dispObj[S.doNotDrag] = true }
