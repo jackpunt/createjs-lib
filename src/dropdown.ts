@@ -1,5 +1,5 @@
 import { Container, Event, MouseEvent, Rectangle, Shape, Stage, Text } from "createjs-module";
-import { C, F, Obj, S, XY } from '.';
+import { C, F, Obj, S, XY } from '.' //'@thegraid/createjs-lib';
 
 // https://jsfiddle.net/s1o1wswr/13/
 
@@ -29,14 +29,14 @@ export interface DropdownItem {
   button?: DropdownButton;
 }
 
-// EaselButton.text field is createjs.Text, not string.
-// Use EaselButton.text.text field to change button caption. 
+// DropdownButton.text field is createjs.Text, not string.
+// Use DropdownButton.text.text field to change button caption. 
 export interface DropdownStyle {
-  fillColor: string
-  fillColorOver: string
-  textColor: string
-  textColorOver: string
-  fontSize: number
+  fillColor?: string
+  fillColorOver?: string
+  textColor?: string
+  textColorOver?: string
+  fontSize?: number
 
   rootColor?: string
   rootColorOver?: string
@@ -80,6 +80,9 @@ export class DropdownButton extends Container {
   click(handler: (item: DropdownItem) => void) {
     this.shape.addEventListener(S.click, handler);
   }
+  static mergeStyle(style: DropdownStyle, defStyle = DropdownButton.defaultStyle) {
+    return Obj.mergeDefaults(style, defStyle)
+  }
 
   /**
    * Contains a rectangular Shape, a Text|TextBox and maybe an Arrow.
@@ -92,7 +95,7 @@ export class DropdownButton extends Container {
    */
   constructor(text: string, w: number, h: number, r: number, click?:(e)=>any, style?: DropdownStyle) {
     super()
-    if (!!style) this.style = style
+    this.style = DropdownButton.mergeStyle(style)
     // Public Methods
     this.pressed = false;
     this.hover = false;
