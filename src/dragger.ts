@@ -132,7 +132,7 @@ export class Dragger {
     let { dragfunc, dragCtx } = data
     if (event.target[S.doNotDrag]) return
     // use currentTarget, so non-dragable Shapes pull whole ScaleableContainer
-    let obj: DisplayObject | Container = event.currentTarget;
+    let obj: DisplayObject | Container = event.currentTarget, stage = obj.stage;
     if (!dragCtx) {
       Dragole.reset(-1) // *first* (next) log will trigger
       dragCtx = this.startDrag(event, obj, data)
@@ -185,7 +185,7 @@ export class Dragger {
         console.log(stime(this, ".pressmove: dragfunc UNKNOWN:"), dragfunc, "dragCtx=", Obj.fromEntriesOf(dragCtx))
       }
     }
-    obj.stage.update();
+    stage?.update();
   }
 
   pressup(e: MouseEvent, data: DragData) {
@@ -234,7 +234,7 @@ export class Dragger {
         alert(msg)
       }
     }
-    obj.stage.update();
+    stage?.update();
   }
   // attach DragData to the DisplayObject that is marked as Dragable:
   getDragData(dispObj: DisplayObject): DragData { return dispObj['DragData'] }
@@ -288,7 +288,7 @@ export class Dragger {
     target.y -= dxy.y
     target.stage.update()            // move and show new position
   }
-  /** Release drag target from mouse, drop on dropTarget. */
+  /** Release drag target from mouse, invoke pressup->dropFunc [drop on dropTarget] */
   stopDrag() {
     let target: DisplayObject = this.dragCont.getChildAt(0)
     target && this.dispatchPressup(target)
