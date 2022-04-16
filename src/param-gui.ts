@@ -47,7 +47,7 @@ export class ParamGUI extends Container {
   }
   target: object = undefined // normal target; a spec may override for a given fieldName
   defStyle: DropdownStyle    // tweaks to DropdownDefaultStyle
-  specs: ParamSpec[]
+  specs: ParamSpec[] = []
   lines: ParamLine[] = []
   linew: number = 0 // max line.text.width
   lineh: number = 0 // max line.text.height
