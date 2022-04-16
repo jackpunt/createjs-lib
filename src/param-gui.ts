@@ -1,6 +1,6 @@
 import { Container, Text } from "createjs-module";
 import { DropdownButton, DropdownChoice, DropdownItem, DropdownStyle } from "./dropdown";
-import { F, stime } from '.' //'@thegraid/createjs-lib'
+import { C, F, stime } from '.' //'@thegraid/createjs-lib'
 
 export { DropdownButton, DropdownItem, DropdownStyle, DropdownChoice }
 export type ParamType = any; // string | number | boolean
@@ -11,10 +11,12 @@ export interface ParamOpts {
   fontColor?: string
   style?: DropdownStyle
   onChange?: (item: ParamItem) => void
+  target?: object
 }
 /** Created by ParamGUI */
 export interface ParamSpec extends ParamOpts {
   fieldName: string
+  target?: object
   type?: string // boolean, string, string[], number,  ? (not used!?)
   chooser?: DropdownChoice // or other chooser...
   choices?: ParamItem[]
@@ -38,16 +40,33 @@ export class ParamLine extends Container {
 }
 
 export class ParamGUI extends Container {
-  constructor(target: object) {
+  constructor(target: object, defStyle: DropdownStyle = {}) {
     super()
     this.target = target
+    this.defStyle = DropdownButton.mergeStyle(this.defStyle)
   }
+  target: object = undefined // normal target; a spec may override for a given fieldName
+  defStyle: DropdownStyle    // tweaks to DropdownDefaultStyle
   specs: ParamSpec[]
   lines: ParamLine[] = []
   linew: number = 0 // max line.text.width
   lineh: number = 0 // max line.text.height
   lead: number = 10 // y-space between lines
 
+  makeParamSpec(fieldName: string, ary: any[], opts: ParamOpts = { fontSize: 32, fontColor: C.black }): ParamSpec {
+    let { fontSize, fontColor, onChange, target } = opts
+    let choices = this.makeChoiceItems(fieldName, ary) // [{text, fieldname, value}]
+    let style = DropdownButton.mergeStyle(opts.style || {}, this.defStyle)
+    return { fieldName, choices, fontSize, fontColor, style, onChange, target }
+  }
+
+  makeChoiceItems(fieldName: string, ary: any[]): ParamItem[] {
+    return ary.map(elt => {
+      let text = elt.toString()
+      if (typeof elt === "function") text = elt.name
+      return { text, fieldName, value: elt }
+    })
+  }
   makeLines(specs: ParamSpec[]) {
     this.specs = specs
     specs.forEach(this.addLine, this)
@@ -94,7 +113,7 @@ export class ParamGUI extends Container {
     line.chooser = ddc
     line.addChild(ddc)
     ddc.onItemChanged(!!line.spec.onChange ? line.spec.onChange : (item) => {this.setValue(item)})
-    let fieldName = line.spec.fieldName, value = this.getValue(fieldName)
+    let fieldName = line.spec.fieldName, target = line.spec.target, value = this.getValue(fieldName, target)
     this.selectValue(fieldName, value, line)
     ddc.enable()
   }
@@ -112,13 +131,13 @@ export class ParamGUI extends Container {
     }
     return item
   }
-  target: object = undefined
+
   /** return target[fieldName]; suitable for override */
-  getValue(fieldName: string) {
-    return this.target[fieldName]
+  getValue(fieldName: string, target = this.target) {
+    return target[fieldName]
   }
   /** update target[item.fieldname] = item.value; suitable for override */
-  setValue(item: ParamItem): void {
-    this.target[item.fieldName] = item.value
+  setValue(item: ParamItem, target = this.target): void {
+    target[item.fieldName] = item.value
   }
 }
