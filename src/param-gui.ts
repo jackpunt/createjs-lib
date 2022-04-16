@@ -73,7 +73,7 @@ export class ParamGUI extends Container {
       return { text, fieldName, value: elt }
     })
   }
-  makeLines(specs: ParamSpec[]) {
+  makeLines(specs: ParamSpec[] = this.specs) {
     this.specs = specs
     specs.forEach(this.addLine, this)
     //this.lines.forEach((line, nth) => this.addChooser(line, specs[nth].choices, nth), this)
