@@ -1,6 +1,6 @@
 {
   "name": "@thegraid/createjs-lib",
-  "version": "1.0.23",
+  "version": "1.0.24",
   "description": "common utilities with createjs-module",
   "main": "dist/index.js",
   "files": [
