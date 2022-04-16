@@ -43,7 +43,7 @@ export class ParamGUI extends Container {
   constructor(target: object, defStyle: DropdownStyle = {}) {
     super()
     this.target = target
-    this.defStyle = DropdownButton.mergeStyle(this.defStyle)
+    this.defStyle = DropdownButton.mergeStyle(defStyle)
   }
   target: object = undefined // normal target; a spec may override for a given fieldName
   defStyle: DropdownStyle    // tweaks to DropdownDefaultStyle
@@ -53,11 +53,17 @@ export class ParamGUI extends Container {
   lineh: number = 0 // max line.text.height
   lead: number = 10 // y-space between lines
 
+  /** retrieve spec by fieldName */
+  spec(fieldName: string) { return this.specs.find(s => s.fieldName == fieldName) }
+
+  /** make a spec and push onto list of specs */
   makeParamSpec(fieldName: string, ary: any[], opts: ParamOpts = { fontSize: 32, fontColor: C.black }): ParamSpec {
     let { fontSize, fontColor, onChange, target } = opts
     let choices = this.makeChoiceItems(fieldName, ary) // [{text, fieldname, value}]
     let style = DropdownButton.mergeStyle(opts.style || {}, this.defStyle)
-    return { fieldName, choices, fontSize, fontColor, style, onChange, target }
+    let spec = { fieldName, choices, fontSize, fontColor, style, onChange, target }
+    this.specs.push(spec)
+    return spec
   }
 
   makeChoiceItems(fieldName: string, ary: any[]): ParamItem[] {
