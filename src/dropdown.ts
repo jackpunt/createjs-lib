@@ -51,8 +51,8 @@ export interface DropdownStyle {
 export class DropdownButton extends Container {
   static defaultStyle: DropdownStyle = {
     fontSize: 32,
-    arrowColor: "lightgrey",
-    rootColor: "grey",
+    arrowColor: "grey",
+    rootColor: "rgba(160,160,160,.5)", // lightish grey alpha=.5
     rootColorOver: "lightgrey",
     rootTextColor: C.black,
     rootTextColorOver: C.black,
