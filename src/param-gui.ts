@@ -125,6 +125,7 @@ export class ParamGUI extends Container {
     line.chooser_w = maxw + 1.5*fs // text_width, some space, Arrow
     line.chooser_x = 0 - line.chooser_w - .5*fs
     this.addChooser(line)
+    return line
   }
 
   /** create and configure a DropdownChoice 'Chooser' for the given line. */
@@ -139,6 +140,7 @@ export class ParamGUI extends Container {
     let fieldName = line.spec.fieldName, target = line.spec.target, value = this.getValue(fieldName, target)
     this.selectValue(fieldName, value, line)
     ddc.enable()
+    return ddc
   }
   /** when a new value is selected, push it back into the target object.
    * auto-invoke onItemChanged() => (item)=>setValue(item) [or from spec.onChange(...) ]

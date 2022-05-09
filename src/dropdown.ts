@@ -37,6 +37,7 @@ export interface DropdownStyle {
   textColor?: string
   textColorOver?: string
   fontSize?: number
+  textAlign?: string
 
   rootColor?: string
   rootColorOver?: string
@@ -51,6 +52,7 @@ export interface DropdownStyle {
 export class DropdownButton extends Container {
   static defaultStyle: DropdownStyle = {
     fontSize: 32,
+    textAlign: 'left',
     arrowColor: "grey",
     rootColor: "rgba(160,160,160,.5)", // lightish grey alpha=.5
     rootColorOver: "lightgrey",
@@ -74,6 +76,7 @@ export class DropdownButton extends Container {
   shape: Shape;
   text: Text;
   fontsize: number;
+  textAlign: string
   w; h; r;
   _arrowShape: Shape
   /** handle click of selected Item. _itemClick(item) OR rootButton._dropdown() */
@@ -102,6 +105,7 @@ export class DropdownButton extends Container {
     this.shape = new Shape();
     this.text = new Text();
     this.fontsize = this.style.fontSize
+    this.textAlign = this.style.textAlign
     this.w = w
     this.h = h
     this.r = r
@@ -179,7 +183,7 @@ export class DropdownButton extends Container {
     t.mouseEnabled = false
     t.text = text;
     t.font = F.fontSpec(this.fontsize) //this.fontsize + "px 'Meiryo UI'"
-    t.textAlign = "left";
+    t.textAlign = this.textAlign
     t.textBaseline = "middle";
     t.lineHeight = this.h;
   }
