@@ -39,6 +39,19 @@ export class ParamLine extends Container {
   nameText: Text
 }
 
+/**
+ * ParamGUI is a set of Choosers arranged as lines of [Chooser, Label]
+ * 
+ * When the selected choice [a DropdownChoice] is changed,
+ * the selected value is assigned to the indicated field of the Target.
+ * 
+ * Each line item can be individually configured using ParamOpts
+ * to target a specific object, and font { fontSize, fontName, fontColor }
+ * and DropdownStyle. 
+ * 
+ * The 'onChange' action defaults to setValue(item) { this.target[item.fieldName] = item.value }
+ * but can be any function(item) => void.
+ */
 export class ParamGUI extends Container {
   constructor(target: object, defStyle: DropdownStyle = {}) {
     super()
@@ -73,6 +86,7 @@ export class ParamGUI extends Container {
       return { text, fieldName, value: elt }
     })
   }
+  /** for each ParamSpec add a Chooser and Text label. */
   makeLines(specs: ParamSpec[] = this.specs) {
     this.specs = specs
     specs.forEach(this.addLine, this)
@@ -81,6 +95,7 @@ export class ParamGUI extends Container {
   findLine(fieldName: string): ParamLine {
     return this.lines.find(pl => pl.spec.fieldName === fieldName)
   }
+  /** set text for the label of the indicated line/Chooser */
   setNameText(fieldName: string, name: string = fieldName): Text {
     let line = this.findLine(fieldName)
     if (!!line.nameText) line.removeChild(line.nameText)
@@ -90,6 +105,7 @@ export class ParamGUI extends Container {
     line.nameText = text
     return text
   }
+  /** create DropdownChoice and Text label for the nth line of this ParamGUI */
   addLine(spec: ParamSpec, nth: number) {
     let line = new ParamLine()
     line.spec = spec
@@ -111,6 +127,7 @@ export class ParamGUI extends Container {
     this.addChooser(line)
   }
 
+  /** create and configure a DropdownChoice 'Chooser' for the given line. */
   addChooser(line: ParamLine) {
     let choices = line.spec.choices
     let boxh = line.height
@@ -118,7 +135,7 @@ export class ParamGUI extends Container {
     ddc.x = line.chooser_x // ddc.y = line.text.y = 0 relative to ParamLine, same as line.text
     line.chooser = ddc
     line.addChild(ddc)
-    ddc.onItemChanged(!!line.spec.onChange ? line.spec.onChange : (item) => {this.setValue(item)})
+    ddc.onItemChanged(!!line.spec.onChange ? line.spec.onChange : (item) => { this.setValue(item) })
     let fieldName = line.spec.fieldName, target = line.spec.target, value = this.getValue(fieldName, target)
     this.selectValue(fieldName, value, line)
     ddc.enable()

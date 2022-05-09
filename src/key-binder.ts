@@ -84,13 +84,14 @@ export class KeyBinder extends EventDispatcher {
   }
   /** return "^-C-M-A-S-keyname" for given keycode */
   keyCodeToString(keycode: number): string {
-    let xbit = (kcode, bit) => { let b = kcode & bit; keycode -= b; return b != 0 }
+    let xbit = (kcode: number, bit: number) => { let b = kcode & bit; keycode -= b; return b != 0 }
     let bits = [ALT, META, CTRL, KEYUP, SHIFT].map( bit => xbit(keycode, bit))
     let ccode = String.fromCharCode(keycode)
-    let str = KeyBinder.codeKey(keycode) || (bits[4] ? ccode : ccode.toLowerCase());
-    //this.details && console.log( `keycode(${keycode}) => string(${str})`)
     let mods = ['A-', 'M-', 'C-', '^-']
-    mods.forEach((mod, n) => {if (bits[n]) {str = `${mod}${str}`}})
+    let str = KeyBinder.codeKey(keycode)
+    if (str) { mods.push('S-') } else { str = (bits[4] ? ccode : ccode.toLowerCase()) }
+    //this.details && console.log( `keycode(${keycode}) => string(${str})`)
+    mods.forEach((mod, n) => { if (bits[n]) { str = `${mod}${str}` } })
     return str
   }
 
@@ -114,6 +115,9 @@ export class KeyBinder extends EventDispatcher {
     }
     if (str.startsWith("A-")) {
       bits.alt = true; str = str.substring(2);
+    }
+    if (str.startsWith("S-")) {
+      bits.shift = true; str = str.substring(2);
     }
     if (str.length == 1) {
       // Assert: a single [ASCII/utf8] char in the string
@@ -141,7 +145,7 @@ export class KeyBinder extends EventDispatcher {
   // if you want to replace deprecated e.keycode:
   static key_keyCode = {
     Bel: 7, Backspace: 8, Tab: 9, Enter: 13, Control: 17, Shift: 16, Alt: 18,
-    AltLeft: 18, AltRight: 19, Escape: 27, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39,
+    AltLeft: 18, AltRight: 19, Escape: 27, Space: 32, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39,
     ArrowDown: 40, MetaLeft: 91, MetaRight: 93 } // '[' : 219
 
   static keyEvent(key: string, code: string, keyCode:number, shiftKey: boolean, ctrlKey: boolean, metaKey: boolean, altKey: boolean, keyup: boolean): KeyboardEvent {
