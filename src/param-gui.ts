@@ -1,6 +1,6 @@
 import { Container, Text } from "createjs-module";
 import { DropdownButton, DropdownChoice, DropdownItem, DropdownStyle } from "./dropdown";
-import { C, F, stime } from '.' //'@thegraid/createjs-lib'
+import { C, F, stime } from '.' //'@thegraid/createjs-lib' //
 
 export { DropdownButton, DropdownItem, DropdownStyle, DropdownChoice }
 export type ParamType = any; // string | number | boolean
@@ -53,10 +53,15 @@ export class ParamLine extends Container {
  * but can be any function(item) => void.
  */
 export class ParamGUI extends Container {
-  constructor(target: object, defStyle: DropdownStyle = {}) {
+  /**
+   * A Stack of Choosers to set various game parameters.
+   * @param target change fields of this object (by default... ParamLine can override)
+   * @param style changes from DropdownButton.defStyle
+   */
+  constructor(target: object, style: DropdownStyle = {}) {
     super()
     this.target = target
-    this.defStyle = DropdownButton.mergeStyle(defStyle)
+    this.defStyle = DropdownButton.mergeStyle(style)
   }
   target: object = undefined // normal target; a spec may override for a given fieldName
   defStyle: DropdownStyle    // tweaks to DropdownDefaultStyle
@@ -116,14 +121,14 @@ export class ParamGUI extends Container {
     let text = this.setNameText(spec.fieldName)
     this.addChild(line)
     let width = text.getMeasuredWidth()
-    let height = text.getMeasuredLineHeight()     
-    this.linew = Math.max(this.linew, width) // width of longest text
+    let height = text.getMeasuredLineHeight()
+    this.linew = Math.max(this.linew, width)  // width of longest text
     this.lineh = Math.max(this.lineh, height) // height of tallest text in all lines... ?
 
     let fs = spec.fontSize || 32
     let maxw = DropdownChoice.maxItemWidth(spec.choices, fs, spec.fontName)
-    line.chooser_w = maxw + 1.5*fs // text_width, some space, Arrow
-    line.chooser_x = 0 - line.chooser_w - .5*fs
+    line.chooser_w = maxw + 1.5 * fs // text_width, some space, Arrow
+    line.chooser_x = 0 - line.chooser_w - .5 * fs // .5 fs between chooser and name
     this.addChooser(line)
     return line
   }

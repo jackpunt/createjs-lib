@@ -1,4 +1,4 @@
-import { Container, Event, Shape, Text, Point, EventDispatcher } from 'createjs-module';
+import { Container, Event, Shape, Text, EventDispatcher } from 'createjs-module';
 import { XY, S, C, F } from '.';
 
 /** send a simple value of type to target. */
@@ -28,13 +28,13 @@ export class ValueCounter extends Container {
   high: number;
   /** font size in px */
   fontSize: number = 16;
-  fontName: string = S.defaultFont;
+  fontName: string = undefined; // use F.defaultFont
   fontSpec: string = F.fontSpec(this.fontSize, this.fontName);
   label: Text;
   labelFontSize: number = 16;
 
 
-  constructor(name: string, initValue: number | string = 0, color: string = C.coinGold, fontSize: number = 16, fontName: string = S.defaultFont) {
+  constructor(name: string, initValue: number | string = 0, color: string = C.coinGold, fontSize: number = 16, fontName: string = undefined) {
     super();
     this.name = name;
     this.mouseEnabled = false;

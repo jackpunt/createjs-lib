@@ -1,5 +1,5 @@
 import { Container, Event, MouseEvent, Rectangle, Shape, Stage, Text } from "createjs-module";
-import { C, F, Obj, S, XY } from '.' //'@thegraid/createjs-lib';
+import { C, F, Obj, S, XY } from '.' //'@thegraid/createjs-lib'; //
 
 // https://jsfiddle.net/s1o1wswr/13/
 
@@ -37,6 +37,7 @@ export interface DropdownStyle {
   textColor?: string
   textColorOver?: string
   fontSize?: number
+  fontName?: string
   textAlign?: string
 
   rootColor?: string
@@ -44,6 +45,7 @@ export interface DropdownStyle {
   rootTextColor?: string
   rootTextColorOver?: string
 
+  /** for 2.5D push into screen: offset by a few pixels */
   pressdown?: XY
   arrowColor?: string
   spacing?: number
@@ -52,6 +54,7 @@ export interface DropdownStyle {
 export class DropdownButton extends Container {
   static defaultStyle: DropdownStyle = {
     fontSize: 32,
+    fontName: undefined,
     textAlign: 'left',
     arrowColor: "grey",
     rootColor: "rgba(160,160,160,.5)", // lightish grey alpha=.5
@@ -75,14 +78,21 @@ export class DropdownButton extends Container {
   hover: boolean;
   shape: Shape;
   text: Text;
-  fontsize: number;
+  fontSize: number;
+  fontName: string;
   textAlign: string
-  w; h; r;
-  _arrowShape: Shape
+  w: number; h: number; r: number;
+  _arrowShape: Shape;
+  _arrowWidth: number = 0;
   /** handle click of selected Item. _itemClick(item) OR rootButton._dropdown() */
   click(handler: (item: DropdownItem) => void) {
     this.shape.addEventListener(S.click, handler);
   }
+  /**
+   * @param style selected overrides
+   * @param defStyle all the default style values
+   * @returns copy of defStyle with overrides from style
+   */
   static mergeStyle(style: DropdownStyle, defStyle = DropdownButton.defaultStyle) {
     return Obj.mergeDefaults(style, defStyle)
   }
@@ -90,11 +100,14 @@ export class DropdownButton extends Container {
   /**
    * Contains a rectangular Shape, a Text|TextBox and maybe an Arrow.
    * @param text supply "" to designate the _rootButton to make an Arrow
-   * @param fontsize for Text in the button
    * @param w for RoundedRectangle
    * @param h for RoundedRectangle
    * @param r for RoundedRectangle
    * @param click handler for click(item)=>void
+   * @param style all the param for DropdownStyle
+   * @param style.fontSize default 16
+   * @param style.fontName default F.defaultFont
+   * @param style.textAlign default 'left'
    */
   constructor(text: string, w: number, h: number, r: number, click?:(e)=>any, style?: DropdownStyle) {
     super()
@@ -104,21 +117,23 @@ export class DropdownButton extends Container {
     this.hover = false;
     this.shape = new Shape();
     this.text = new Text();
-    this.fontsize = this.style.fontSize
+    this.fontSize = this.style.fontSize
+    this.fontName = this.style.fontName
     this.textAlign = this.style.textAlign
     this.w = w
     this.h = h
     this.r = r
-    let _self = this
+    let _self = this // OR: could use .on(,,,this)
  
     let makeArrow = (item_h: number, font_h: number): Shape => {
       let arrow = new Shape()
       let arrow_c = this.style.arrowColor || this.style.rootTextColor || this.style.textColor
-      let arrow_r = font_h/2;     // AKA: "radius"
-      let arrow_y = item_h/2 - arrow_r*.2
-      let arrow_x = (this.w * 0.95 - arrow_r);
+      let arrow_r = font_h / 2;     // AKA: "radius"
+      let arrow_y = item_h / 2 - arrow_r * .2
+      let arrow_x = (this.w - arrow_r - 2); // 5% "margin/border" on end?
       arrow.graphics.beginFill(arrow_c).drawPolyStar(arrow_x, arrow_y, arrow_r, 3, 0, 90)
       arrow.mouseEnabled = false
+      this._arrowWidth = (arrow_c === 'transparent') ? 0 : 2 * (arrow_r + 2)
       return arrow
     }
 
@@ -132,8 +147,12 @@ export class DropdownButton extends Container {
       this.style.textColor = this.style.rootTextColor || this.style.textColor
       this.style.textColorOver = this.style.rootTextColorOver || this.style.textColorOver
 
-      this._arrowShape = makeArrow(this.h, this.fontsize)
+      this._arrowShape = makeArrow(this.h, this.fontSize)
       this.addChild(this._arrowShape);
+    } else {
+      let arrow_c = this.style.arrowColor || this.style.rootTextColor || this.style.textColor
+      let arrow_r = this.fontSize / 2;     // AKA: "radius"
+      this._arrowWidth = (arrow_c === 'transparent') ? 0 : 2 * (arrow_r + 2)
     }
 
     // Shape Events
@@ -158,16 +177,18 @@ export class DropdownButton extends Container {
   }
   /** update shape.graphics to show background/rectangle */
   render() {
+    this.shape.x = 0;
+    this.shape.y = 0;
+    let left = this.h * .2, c = (this.w - this._arrowWidth + 4)/2 // h ~ fontSize
+    this.text.x = (this.text.textAlign === 'center' ? c
+      : (this.text.textAlign === 'left') ? left
+      : (this.w - this._arrowWidth) ); // (this.w - this.h - mar) ); 
+    this.text.y = this.h / 2;
     if (this.pressed) {
-      this.shape.x = this.style.pressdown.x;
-      this.shape.y = this.style.pressdown.y;
-      this.text.x = this.w * 0.1 + this.style.pressdown.x;
-      this.text.y = this.h / 2 + this.style.pressdown.y;
-    } else {
-      this.shape.x = 0;
-      this.shape.y = 0;
-      this.text.x = this.w * 0.1;
-      this.text.y = this.h / 2;
+      this.shape.x += this.style.pressdown.x;
+      this.shape.y += this.style.pressdown.y;
+      this.text.x += this.style.pressdown.x;
+      this.text.y += this.style.pressdown.y;
     }
 
     let g = this.shape.graphics, over = this.hover || this.pressed
@@ -175,14 +196,13 @@ export class DropdownButton extends Container {
     g.f(over ? this.style.fillColorOver : this.style.fillColor)
     g.drawRoundRect(0, 0, this.w, this.h, this.r);
     this.text.color = over ? this.style.textColorOver : this.style.textColor;
-    if (this.stage instanceof Stage) 
-      this.stage.update()
+    if (this.stage instanceof Stage) this.stage.update()
   }
   initText(text: string) {
-    var t = this.text;
+    const t = this.text;
     t.mouseEnabled = false
     t.text = text;
-    t.font = F.fontSpec(this.fontsize) //this.fontsize + "px 'Meiryo UI'"
+    t.font = F.fontSpec(this.fontSize, this.fontName) //this.fontsize + "px 'Meiryo UI'"
     t.textAlign = this.textAlign
     t.textBaseline = "middle";
     t.lineHeight = this.h;
