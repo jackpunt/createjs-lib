@@ -141,8 +141,8 @@ export class ParamGUI extends Container {
     ddc.x = line.chooser_x // ddc.y = line.text.y = 0 relative to ParamLine, same as line.text
     line.chooser = ddc
     line.addChild(ddc)
-    ddc.onItemChanged(!!line.spec.onChange ? line.spec.onChange : (item) => { this.setValue(item) })
     let fieldName = line.spec.fieldName, target = line.spec.target, value = this.getValue(fieldName, target)
+    ddc.onItemChanged(!!line.spec.onChange ? line.spec.onChange : (item) => { this.setValue(item, target) })
     this.selectValue(fieldName, value, line)
     ddc.enable()
     return ddc
