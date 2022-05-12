@@ -84,11 +84,21 @@ export class ParamGUI extends Container {
     return spec
   }
 
-  makeChoiceItems(fieldName: string, ary: any[]): ParamItem[] {
-    return ary.map(elt => {
-      let text = elt.toString()
-      if (typeof elt === "function") text = elt.name
-      return { text, fieldName, value: elt }
+  /**
+   * Item displays 'item.text', invokes target[item.fieldName] = item.value
+   * @param fieldName 
+   * @param valueAry Array< TextIsValue | { text: text, value: value } >
+   * @returns Array< { text, fieldName, value } >
+   */
+  makeChoiceItems(fieldName: string, valueAry: any[]): ParamItem[] {
+    return valueAry.map(elt => {
+      let value: any = elt 
+      let text = (typeof elt ==='function') ? elt.name : elt.toString() // presentation string
+      if (typeof elt === 'object') {
+        text = elt.text
+        value = elt.value
+      }
+      return { text, fieldName, value }
     })
   }
   /** for each ParamSpec add a Chooser and Text label. */
