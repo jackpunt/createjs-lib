@@ -1,13 +1,13 @@
 {
   "name": "@thegraid/createjs-lib",
-  "version": "1.0.32",
+  "version": "1.1.0",
   "description": "common utilities with createjs-module",
   "main": "dist/index.js",
   "files": [
     "dist"
   ],
   "scripts": {
-    "pub": "npm run build; npm version patch; npm publish --access public",
+    "pub": "npm run build; npm version ${1:-patch}; npm publish --access public",
     "testEdit": "test/testEditBox.sh",
     "test": "jest --runInBand --force-exit --detectOpenHandles --verbose",
     "clean": "rm -f dist/*",
