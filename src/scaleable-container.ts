@@ -1,5 +1,5 @@
 import { Container, DisplayObject, Point, Matrix2D, Event } from '@thegraid/createjs-module';
-import { XY, S } from '.';
+import { XY, S } from './index.js';
 
 export type SC = ScaleableContainer
 

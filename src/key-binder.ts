@@ -1,5 +1,5 @@
 import { EventDispatcher } from '@thegraid/createjs-module';
-import { S, stime } from '.'
+import { S, stime } from './index.js'
 
 // An injected singleton
 /**

@@ -1,5 +1,5 @@
-import { KeyBinder } from './src'
-import { EditBox } from './src'
+import { KeyBinder } from './src/index.js'
+import { EditBox } from './src/index.js'
 
 let kb = new KeyBinder()
 //kb.details = true

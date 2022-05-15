@@ -1,4 +1,4 @@
-import { Binding, KeyBinder } from './src'
+import { Binding, KeyBinder } from './src/index.js'
 
 const kb0 = new KeyBinder()
 const kb = KeyBinder.keyBinder; // assert( kb === kb0)

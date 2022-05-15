@@ -1,6 +1,6 @@
 import { Container, Shape, Text } from "@thegraid/createjs-module"
-import { C, F, XYWH } from "."
-import { KeyBinder, Binding  } from "./key-binder";
+import { C, F, XYWH } from "./index.js"
+import { KeyBinder, Binding  } from "./key-binder.js";
 
 /** a Container with a [rectangle] Shape and a Text.
  * keystrokes to the Shape are inserted into the Text.

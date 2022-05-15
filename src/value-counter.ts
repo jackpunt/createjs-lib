@@ -1,5 +1,5 @@
 import { Container, Event, Shape, Text, EventDispatcher } from '@thegraid/createjs-module';
-import { XY, S, C, F } from '.';
+import { XY, S, C, F } from './index.js';
 
 /** send a simple value of type to target. */
 export class ValueEvent extends Event {

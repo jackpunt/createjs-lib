@@ -1,5 +1,5 @@
-import type * as createjs from 'createjs-module'
-import { className, stime } from './src';
+import type * as createjs from '@thegraid/createjs-module'
+import { className, stime } from './src/index.js'; // finding @thegraid/common-lib/index
 export class EventDispatcher implements createjs.EventDispatcher {
   addEventListener(type: string, listener: (eventObj: Object) => boolean, useCapture?: boolean): Function;
   addEventListener(type: string, listener: (eventObj: Object) => void, useCapture?: boolean): Function;
@@ -52,6 +52,7 @@ export class EventDispatcher implements createjs.EventDispatcher {
   
 }
 export class DisplayObject implements createjs.DisplayObject {
+  bitmapCache: createjs.BitmapCache;
   alpha: number;
   cacheCanvas: Object | HTMLCanvasElement;
   cacheID: number;

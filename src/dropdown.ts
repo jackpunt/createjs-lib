@@ -1,5 +1,5 @@
 import { Container, Event, MouseEvent, Rectangle, Shape, Stage, Text } from "@thegraid/createjs-module";
-import { C, F, Obj, S, XY } from '.' //'@thegraid/createjs-lib'; //
+import { C, F, Obj, S, XY } from './index.js' //'@thegraid/createjs-lib'; //
 
 // https://jsfiddle.net/s1o1wswr/13/
 
