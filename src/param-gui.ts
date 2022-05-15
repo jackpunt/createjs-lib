@@ -1,4 +1,4 @@
-import { Container, Text } from "createjs-module";
+import { Container, Text } from "@thegraid/createjs-module";
 import { DropdownButton, DropdownChoice, DropdownItem, DropdownStyle } from "./dropdown";
 import { C, F, stime } from '.' //'@thegraid/createjs-lib' //
 

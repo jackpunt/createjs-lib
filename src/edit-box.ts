@@ -1,4 +1,4 @@
-import { Container, Shape, Text } from "createjs-module"
+import { Container, Shape, Text } from "@thegraid/createjs-module"
 import { C, F, XYWH } from "."
 import { KeyBinder, Binding  } from "./key-binder";
 

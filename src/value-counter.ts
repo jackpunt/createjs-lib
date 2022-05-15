@@ -1,4 +1,4 @@
-import { Container, Event, Shape, Text, EventDispatcher } from 'createjs-module';
+import { Container, Event, Shape, Text, EventDispatcher } from '@thegraid/createjs-module';
 import { XY, S, C, F } from '.';
 
 /** send a simple value of type to target. */
