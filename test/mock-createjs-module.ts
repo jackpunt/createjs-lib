@@ -1,4 +1,4 @@
-import type * as createjs from '@thegraid/createjs-module'
+import type * as createjs from '@thegraid/easeljs-module'
 import { className, stime } from './src/index.js'; // finding @thegraid/common-lib/index
 export class EventDispatcher implements createjs.EventDispatcher {
   addEventListener(type: string, listener: (eventObj: Object) => boolean, useCapture?: boolean): Function;

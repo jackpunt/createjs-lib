@@ -1,4 +1,4 @@
-import { Container, Event, Shape, Text, EventDispatcher } from '@thegraid/createjs-module';
+import { Container, Event, Shape, Text, EventDispatcher } from '@thegraid/easeljs-module';
 import { XY, S, C, F } from './index.js';
 
 /** send a simple value of type to target. */
