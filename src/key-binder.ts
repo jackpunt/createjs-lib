@@ -1,4 +1,4 @@
-import { EventDispatcher } from '@thegraid/createjs-module';
+import { EventDispatcher } from '@thegraid/easeljs-module';
 import { S, stime } from './index.js'
 
 // An injected singleton

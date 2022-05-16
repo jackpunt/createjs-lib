@@ -1,4 +1,4 @@
-import { EventDispatcher, Stage } from '@thegraid/createjs-module';
+import { EventDispatcher, Stage } from '@thegraid/easeljs-module';
 
 export function makeStage(canvasId: string, tick = true) {
   let stage = new Stage(canvasId)
