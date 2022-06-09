@@ -6,6 +6,7 @@ export { DropdownButton, DropdownItem, DropdownStyle, DropdownChoice }
 export type ParamType = any; // string | number | boolean
 /** Supplied by user */
 export interface ParamOpts {
+  name?: string
   fontName?: string
   fontSize?: number
   fontColor?: string
@@ -17,6 +18,7 @@ export interface ParamOpts {
 export interface ParamSpec extends ParamOpts {
   fieldName: string
   target?: object
+  name?: string
   type?: string // boolean, string, string[], number,  ? (not used!?)
   chooser?: DropdownChoice // or other chooser...
   choices?: ParamItem[]
@@ -70,16 +72,17 @@ export class ParamGUI extends Container {
   linew: number = 0 // max line.text.width
   lineh: number = 0 // max line.text.height
   lead: number = 10 // y-space between lines
+  ymax: number = 0  // y at bottom of last line
 
   /** retrieve spec by fieldName */
   spec(fieldName: string) { return this.specs.find(s => s.fieldName == fieldName) }
 
   /** make a spec and push onto list of specs */
   makeParamSpec(fieldName: string, ary: any[], opts: ParamOpts = { fontSize: 32, fontColor: C.black }): ParamSpec {
-    let { fontSize, fontColor, onChange, target } = opts
+    let { name, fontSize, fontColor, onChange, target } = opts
     let choices = this.makeChoiceItems(fieldName, ary) // [{text, fieldname, value}]
     let style = DropdownButton.mergeStyle(opts.style || {}, this.defStyle)
-    let spec = { fieldName, choices, fontSize, fontColor, style, onChange, target }
+    let spec = { name, fieldName, choices, fontSize, fontColor, style, onChange, target }
     this.specs.push(spec)
     return spec
   }
@@ -124,16 +127,16 @@ export class ParamGUI extends Container {
   addLine(spec: ParamSpec, nth: number) {
     let line = new ParamLine()
     line.spec = spec
-    let y = 0
-    this.lines.forEach(pl => y += pl.height)
-    line.y = y + nth * this.lead
+    line.y = 0
+    this.lines.forEach(pl => line.y += (pl.height + this.lead)) // pre-existing lines
     this.lines.push(line) // so nameText can findLine()
-    let text = this.setNameText(spec.fieldName)
+    let text = this.setNameText(spec.fieldName, spec.name)
     this.addChild(line)
     let width = text.getMeasuredWidth()
     let height = text.getMeasuredLineHeight()
     this.linew = Math.max(this.linew, width)  // width of longest text
     this.lineh = Math.max(this.lineh, height) // height of tallest text in all lines... ?
+    this.ymax = line.y + line.height          // bottom of last line
 
     let fs = spec.fontSize || 32
     let maxw = DropdownChoice.maxItemWidth(spec.choices, fs, spec.fontName)
