@@ -1,8 +1,16 @@
 import { EventDispatcher, Stage } from '@thegraid/easeljs-module';
 
+/** if no canvas, then disable MouseOver, DOMEvents, tick & tickChildren 
+ * @param canvasId the DOM ID of a \<canvas> Element (or undefined for no canvas)
+ */
 export function makeStage(canvasId: string, tick = true) {
   let stage = new Stage(canvasId)
-  stage.tickOnUpdate = tick
+  stage.tickOnUpdate = this.stage.tickChildren = tick
+  if (!stage.canvas) {
+    stage.enableMouseOver(0)
+    stage.enableDOMEvents(false)
+    stage.tickEnabled = this.stage.tickChildren = false
+  }
   return stage
 }
 
