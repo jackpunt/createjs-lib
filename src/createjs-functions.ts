@@ -5,11 +5,11 @@ import { EventDispatcher, Stage } from '@thegraid/createjs-module';
  */
 export function makeStage(canvasId: string, tick = true) {
   let stage = new Stage(canvasId)
-  stage.tickOnUpdate = this.stage.tickChildren = tick
+  stage.tickOnUpdate = stage.tickChildren = tick
   if (!stage.canvas) {
     stage.enableMouseOver(0)
     stage.enableDOMEvents(false)
-    stage.tickEnabled = this.stage.tickChildren = false
+    stage.tickEnabled = stage.tickChildren = false
   }
   return stage
 }
