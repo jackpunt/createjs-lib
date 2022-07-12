@@ -1,4 +1,4 @@
-import { Container, Shape, Text } from "@thegraid/easeljs-module"
+import { Container, Shape, Text } from "@thegraid/createjs-module"
 import { C, F, XYWH } from "./index.js"
 import { KeyBinder, Binding  } from "./key-binder.js";
 
