@@ -13,6 +13,7 @@ export interface ParamOpts {
   style?: DropdownStyle
   onChange?: (item: ParamItem) => void
   target?: object
+  chooser?: new (items: DropdownItem[], item_w: number, item_h: number, style?: DropdownStyle) => DropdownChoice // Constructor for DropdowChoice or subclass
 }
 /** Created by ParamGUI */
 export interface ParamSpec extends ParamOpts {
@@ -20,7 +21,6 @@ export interface ParamSpec extends ParamOpts {
   target?: object
   name?: string
   type?: string // boolean, string, string[], number,  ? (not used!?)
-  chooser?: DropdownChoice // or other chooser...
   choices?: ParamItem[]
 }
 export interface ParamItem extends DropdownItem {
@@ -79,10 +79,10 @@ export class ParamGUI extends Container {
 
   /** make a spec and push onto list of specs */
   makeParamSpec(fieldName: string, ary: any[], opts: ParamOpts = { fontSize: 32, fontColor: C.black }): ParamSpec {
-    let { name, fontSize, fontColor, onChange, target } = opts
+    let { name, fontSize, fontColor, onChange, target, chooser } = opts
     let choices = this.makeChoiceItems(fieldName, ary) // [{text, fieldname, value}]
     let style = DropdownButton.mergeStyle(opts.style || {}, this.defStyle)
-    let spec = { name, fieldName, choices, fontSize, fontColor, style, onChange, target }
+    let spec = { name, fieldName, choices, fontSize, fontColor, style, onChange, target, chooser }
     this.specs.push(spec)
     return spec
   }
@@ -96,6 +96,7 @@ export class ParamGUI extends Container {
   makeChoiceItems(fieldName: string, valueAry: any[]): ParamItem[] {
     return valueAry.map(elt => {
       let value: any = elt 
+      // NOTE: function.toString() changes when compiled for production!
       let text = (typeof elt ==='function') ? elt.name : elt.toString() // presentation string
       if (typeof elt === 'object') {
         text = elt.text
@@ -150,13 +151,14 @@ export class ParamGUI extends Container {
   addChooser(line: ParamLine) {
     let choices = line.spec.choices
     let boxh = line.height
-    let ddc = new DropdownChoice(choices, line.chooser_w, boxh, line.spec.style)
+    let ddConstructor = line.spec.chooser || DropdownChoice
+    let ddc = new ddConstructor(choices, line.chooser_w, boxh, line.spec.style)
     ddc.x = line.chooser_x // ddc.y = line.text.y = 0 relative to ParamLine, same as line.text
     line.chooser = ddc
     line.addChild(ddc)
     let fieldName = line.spec.fieldName, target = line.spec.target, value = this.getValue(fieldName, target)
     ddc.onItemChanged(!!line.spec.onChange ? line.spec.onChange : (item) => { this.setValue(item, target) })
-    this.selectValue(fieldName, value, line)
+    this.selectValue(fieldName, value, line) // set initial value
     ddc.enable()
     return ddc
   }
@@ -166,7 +168,7 @@ export class ParamGUI extends Container {
    */
   selectValue(fieldName: string, value: ParamType, line?: ParamLine): ParamItem | undefined {
     line = line || this.findLine(fieldName)
-    if (!line) { return null }  // fieldName not available
+    if (!line) { return undefined }  // fieldName not available
     // invalid value leaves *current* value:
     let item = line.spec.choices.find(item => (item.value === value)) // {text, fieldName?, value?, bgColor?}
     if (!!item) {

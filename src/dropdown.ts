@@ -25,6 +25,8 @@ import { C, F, Obj, S, XY } from './index.js' //'@thegraid/createjs-lib'; //
 export interface DropdownItem {
   /** text to display in Item */
   text: string;
+  /** value associated, if different from text */
+  value?: any;
   /** DisplayObject-Container holding the text (and mouse actions, etc.) */
   button?: DropdownButton;
 }
@@ -72,15 +74,15 @@ export class DropdownButton extends Container {
   }
   // Public Members
   style: DropdownStyle = Obj.fromEntriesOf(DropdownButton.defaultStyle);
+  text: Text;
+  fontSize: number;
+  fontName: string;
+  textAlign: string
 
   // Private Members
   pressed: boolean;
   hover: boolean;
   shape: Shape;
-  text: Text;
-  fontSize: number;
-  fontName: string;
-  textAlign: string
   w: number; h: number; r: number;
   _arrowShape: Shape;
   _arrowWidth: number = 0;
@@ -196,7 +198,7 @@ export class DropdownButton extends Container {
     g.f(over ? this.style.fillColorOver : this.style.fillColor)
     g.drawRoundRect(0, 0, this.w, this.h, this.r);
     this.text.color = over ? this.style.textColorOver : this.style.textColor;
-    if (this.stage instanceof Stage) this.stage.update()
+    this.stage?.update()
   }
   initText(text: string) {
     const t = this.text;
@@ -231,10 +233,10 @@ export class DropdownChoice extends Container {
   /** show or hide all the item.button(s) 
    * @param expand true to toggle state, false to collapse
    */
-  private dropdown(expand?: boolean) {
+  protected dropdown(expand?: boolean) {
     if (expand) expand = !this._expand;
-    if (!expand) this.stage.dispatchEvent(new Event("DropdownCollapse", true, true))
-    this.parent.parent.setChildIndex(this.parent, this.parent.parent.numChildren -1)
+    // onChange may have deconstructed the Containers
+    this.parent?.parent?.setChildIndex(this.parent, this.parent.parent.numChildren -1)
     this.items.forEach(item => item.button.visible = expand)
     this._expand = expand;
     //console.log(stime(this, ".dropdown: expand="), expand)
@@ -242,10 +244,6 @@ export class DropdownChoice extends Container {
   enable() {
     // Stage Event
     this.stage.enableMouseOver()
-    this.stage.on("DropdownCollapse", (e: MouseEvent) => {
-      //this.dropdown(false)
-      //this.stage.update()
-    });
   }
   /** @return true if mouseEvent is over this Dropdown */
   isMouseOver(e: MouseEvent): boolean {
@@ -274,15 +272,12 @@ export class DropdownChoice extends Container {
     this._expand = false;
     let spacing = style ? style.spacing : 0; // item spacing
 
-    let _rootclick = () => { this.dropdown(true); }
-    let _itemclick = (item: DropdownItem) => { this.dropdown(false); this.select(item); };
-
-    this._rootButton = new DropdownButton("", item_w, item_h, 0, () => _rootclick(), style);
+    this._rootButton = new DropdownButton("", item_w, item_h, 0, () => this.rootclick(), style);
     this.addChild(this._rootButton)
 
     // Initialize each DropdownItem -> DropdownButton
     items.forEach((item, c) => {
-      let btn = new DropdownButton(item.text, item_w, item_h, 0, () => _itemclick(item), style);
+      let btn = new DropdownButton(item.text, item_w, item_h, 0, () => this.itemclick(item), style);
       btn.y += (item_h + spacing) * (c + 1) // "+ 1" to account for _rootButton
       this._boundsExpand.height += item_h + spacing;
       item.button = btn;
@@ -290,6 +285,9 @@ export class DropdownChoice extends Container {
       this.addChild(btn)
     })
   }
+  rootclick() { this.dropdown(true) }
+  itemclick(item: DropdownItem) { this.dropdown(false); this.select(item) }
+
   static maxItemWidth(items: DropdownItem[], font_h: number, fontName?: string) {
     let w = 0
     items.forEach(item => 
@@ -306,23 +304,19 @@ export class DropdownChoice extends Container {
    */
   select(item: DropdownItem): DropdownItem {
     if (item == undefined) item = this._selected // "reselect" same item [no-op]
-    var index = this.items.indexOf(item); // -1 -> retain current selection
-    this.selectAt(index);
+    let index = this.items.indexOf(item); // -1 -> retain current selection
+    if (index == this._index) return item // no change, nothing to do
+    // maintain this._selectedItem AND this._index for detecting change
+    this._selected = item;
+    this._index = index
+    this.changed(item);  // possible to override and change item.text
+    this._rootButton.text.text = item.text;
+    this.stage?.update() // in case changed(item) removes Dropdown from stage...
     return item;
   }
-  selectAt(index: number): number {
-    if (index < 0 || index >= this.items.length) {
-      return this._index; // no change
-    }
-    if (index != this._index) {
-      var item = this.items[index];
-      this._selected = item;
-      this._index = index
-      this._rootButton.text.text = item.text;
-      this.changed(item);
-      this.stage && this.stage.update() // in case changed(item) removes Dropdown from stage...
-    }
-    return index;
+  /** alternate to select(item); selectItem by index */
+  selectAt(index: number): DropdownItem {
+    return this.select(this.items[index])
   }
   /** delegates to this._itemChanged, as set by this.onItemChanged() */
   changed(item: DropdownItem) {
@@ -330,4 +324,27 @@ export class DropdownChoice extends Container {
       this._itemChanged(item)
    }
 
+}
+
+/** auto-select next item in cycle. */
+export class CycleChoice extends DropdownChoice {
+  override rootclick() {
+    let ndx = (this.items.indexOf(this._selected) + 1) % this.items.length
+    let item = this.items[ndx];
+    this.select(item);
+    this.dropdown(false) // super.rootclick()
+  }
+}
+
+/** present [false, true] with any pair of string: ['false', 'true'] */
+export class BoolChoice extends CycleChoice {
+  constructor(items: DropdownItem[], item_w: number, item_h: number, style?: DropdownStyle) {
+    let boolValues = (items: DropdownItem[]) => { 
+      items.forEach((item, ndx) => {
+        if (item.text == item.value) item.value = (ndx == 1)
+      })
+      return items
+    }
+    super(boolValues(items), item_w, item_h, style)
+  }
 }
