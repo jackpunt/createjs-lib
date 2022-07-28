@@ -53,19 +53,21 @@ export class EditBox extends Container {
   }
 
   initKeys() {
-    let selfKey: RegExp = /^(\S| )$/, scope = this
-    KeyBinder.keyBinder.setKey(selfKey, { thisArg: this, func: this.selfInsert }, scope)
-    KeyBinder.keyBinder.setKey("Enter", { thisArg: this, func: this.newline }, scope)
-    KeyBinder.keyBinder.setKey("Backspace", { thisArg: this, func: this.delBack }, scope)
-    KeyBinder.keyBinder.setKey("ArrowRight", { thisArg: this, func: this.movePoint, argVal: 1 }, scope)
-    KeyBinder.keyBinder.setKey("ArrowLeft", { thisArg: this, func: this.movePoint, argVal: -1 }, scope)
-    KeyBinder.keyBinder.setKey("C-f", { thisArg: this, func: this.movePoint, argVal: 1 }, scope)
-    KeyBinder.keyBinder.setKey("C-b", { thisArg: this, func: this.movePoint, argVal: -1 }, scope)
-    KeyBinder.keyBinder.setKey("C-e", { thisArg: this, func: this.movePoint, argVal: 'max' }, scope)
-    KeyBinder.keyBinder.setKey("C-a", { thisArg: this, func: this.movePoint, argVal: 'min' }, scope)
-    KeyBinder.keyBinder.setKey("C-d", { thisArg: this, func: this.delForw }, scope)
-    KeyBinder.keyBinder.setKey("C-k", { thisArg: this, func: this.kill }, scope)
-    KeyBinder.keyBinder.setKey("C-y", { thisArg: this, func: this.yank}, scope)
+    let selfKey: RegExp = /^(\S| )$/, kb = KeyBinder.keyBinder, scope = this
+    kb.setKey(selfKey, { thisArg: this, func: this.selfInsert }, scope)
+    kb.setKey("Enter", { thisArg: this, func: this.newline }, scope)
+    kb.setKey("Backspace", { thisArg: this, func: this.delBack }, scope)
+    kb.setKey("ArrowRight", { thisArg: this, func: this.movePoint, argVal: '+' }, scope)
+    kb.setKey("ArrowLeft", { thisArg: this, func: this.movePoint, argVal: '-' }, scope)
+    kb.setKey("C-f", { thisArg: this, func: this.movePoint, argVal: '+' }, scope)
+    kb.setKey("C-b", { thisArg: this, func: this.movePoint, argVal: '-' }, scope)
+    kb.setKey("M-<", { thisArg: this, func: this.movePoint, argVal: 'min' }, scope)
+    kb.setKey("M->", { thisArg: this, func: this.movePoint, argVal: 'max' }, scope)
+    kb.setKey("C-a", { thisArg: this, func: this.movePoint, argVal: 'min' }, scope)
+    kb.setKey("C-e", { thisArg: this, func: this.movePoint, argVal: 'max' }, scope)
+    kb.setKey("C-d", { thisArg: this, func: this.delForw }, scope)
+    kb.setKey("C-k", { thisArg: this, func: this.kill }, scope)
+    kb.setKey("C-y", { thisArg: this, func: this.yank}, scope)
     this.on(S.click, (ev: MouseEvent) => {this.setFocus(true); ev.stopImmediatePropagation()})
   }
   setStyle(style?: TextStyle) {
@@ -100,10 +102,17 @@ export class EditBox extends Container {
     })
     this.stage?.update()
   }
-  movePoint(argVal: any, eStr: string | KeyboardEvent) {
+  /**
+   * 
+   * @param argVal 'min' 'max' 'bol' 'eol' or number (offset into this.buf == this.text.text)
+   * @param eStr (ignored)
+   */
+  movePoint(argVal: any, eStr?: string | KeyboardEvent) {
     if (argVal == 'min') this.point = 0
     else if (argVal == 'max') this.point = this.buf.length
-    else this.point = Math.max(0, Math.min(this.buf.length, this.point + argVal))
+    else if (argVal == '+') this.point = Math.min(this.buf.length, this.point + 1)
+    else if (argVal == '-') this.point = Math.max(0, this.point - 1)
+    else if (typeof argVal == 'number') this.point = Math.max(0, Math.min(this.buf.length, argVal))
     this.repaint()
   }
   /**
