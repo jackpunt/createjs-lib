@@ -22,11 +22,11 @@ export class EditBox extends Container {
   fontName: string;
   textColor: string = C.BLACK
   // text.textBaseline: Default is "top" [vs "alphabetic".. the 'line' baseline]
-  cmark = new Shape(new Graphics().f(C.black).mt(0,0).lt(0,32)); // cursor mark
+  cmark = new Shape(new Graphics().s(C.black).mt(0,0).lt(0,32)); // cursor mark
   // cursor: A CSS cursor (ex. "pointer", "help", "text", etc) that will be displayed when the user hovers over this display object.
-  makeCursor(color = C.BLACK, y = this.fontSize) {
-    this.cmark.graphics.c().f(color).mt(0,0).lt(0,y)
-    this.cmark.cache(-1,0,2,1+y)
+  makeCursor(color = C.BLACK, dy = this.fontSize) {
+    this.cmark.graphics.c().s(color).mt(0,0).lt(0,dy)
+    //this.cmark.cache(-1,0,2,1+dy)
     this.addChild(this.cmark)
     this.cmark[S.Aname] = 'cursor'
   }
@@ -53,7 +53,7 @@ export class EditBox extends Container {
   }
 
   initKeys() {
-    let selfKey: RegExp = /\S| /, scope = this
+    let selfKey: RegExp = /^(\S| )$/, scope = this
     KeyBinder.keyBinder.setKey(selfKey, { thisArg: this, func: this.selfInsert }, scope)
     KeyBinder.keyBinder.setKey("Enter", { thisArg: this, func: this.newline }, scope)
     KeyBinder.keyBinder.setKey("Backspace", { thisArg: this, func: this.delBack }, scope)
@@ -63,8 +63,10 @@ export class EditBox extends Container {
     KeyBinder.keyBinder.setKey("C-b", { thisArg: this, func: this.movePoint, argVal: -1 }, scope)
     KeyBinder.keyBinder.setKey("C-e", { thisArg: this, func: this.movePoint, argVal: 'max' }, scope)
     KeyBinder.keyBinder.setKey("C-a", { thisArg: this, func: this.movePoint, argVal: 'min' }, scope)
+    KeyBinder.keyBinder.setKey("C-d", { thisArg: this, func: this.delForw }, scope)
     KeyBinder.keyBinder.setKey("C-k", { thisArg: this, func: this.kill }, scope)
     KeyBinder.keyBinder.setKey("C-y", { thisArg: this, func: this.yank}, scope)
+    this.on(S.click, (ev: MouseEvent) => {this.setFocus(true); ev.stopImmediatePropagation()})
   }
   setStyle(style?: TextStyle) {
     style?.hasOwnProperty('fontSize') && (this.fontSize = style.fontSize)
@@ -86,16 +88,17 @@ export class EditBox extends Container {
   repaint(text = this.buf.join('')) {
     // first: assume no line-wrap
     this.text.text = text    // TODO: show cursor moved...
-    // QQQQ: should cursor be a Text/Char? or a Shape(graphics)?
-    // either way: compute length of text up to cursor, calc XY coords,
-    // show cursor and rest of text at that point.
-    let pre = this.buf.slice(0,this.point).join('')
-    let w = textWidth(pre, this.fontSize, this.fontName)
-    this.cmark.x = w
+    let lines = text.split('\n'), col = 0, pt = this.point, liny = 0
+    lines.forEach(line => {
+      if (pt >= col && pt <= col + line.length) {
+        let pre = line.slice(0, pt-col)
+        this.cmark.x = textWidth(pre, this.fontSize, this.fontName)
+        this.cmark.y = liny
+      }
+      liny += this.fontSize
+      col += (line.length+1)
+    })
     this.stage?.update()
-    // compute text length, move 'cursor' Shape to right place.
-    // see est-scm text layout code for hints on multi-line layout
-    // OR: do an Array<Line> ... but therein lies other madness.
   }
   movePoint(argVal: any, eStr: string | KeyboardEvent) {
     if (argVal == 'min') this.point = 0
@@ -113,12 +116,17 @@ export class EditBox extends Container {
     this.repaint()
   }
   newline(argVal: any, eStr: string | KeyboardEvent) {
-    this.selfInsert(argVal, '/n')  // TODO: confirm createjs/DOM does the right thing
+    this.selfInsert(argVal, '\n')  // TODO: confirm createjs/DOM does the right thing
   }
   /** delete char before cursor */
   delBack(argVal: any, eStr: string | KeyboardEvent) {
     if (this.point < 1) return
     this.buf.splice(--this.point, 1)
+    this.repaint()
+  }
+  delForw(argVal: any, eStr: string | KeyboardEvent) {
+    if (this.point >= this.buf.length) return
+    this.buf.splice(this.point, 1)
     this.repaint()
   }
   kill(argVal: any, eStr: string | KeyboardEvent) {
@@ -127,10 +135,17 @@ export class EditBox extends Container {
   }
   yank(argVal: any, eStr: string | KeyboardEvent) {
     this.buf.splice(this.point, 0, ...EditBox.killBuf)
+    this.point += EditBox.killBuf.length
     this.repaint()
   }
+  
   setFocus(f = true) {
     KeyBinder.keyBinder.setFocus(f ? this : undefined)
+    if (this.stage && !this.stage['EB.unFocus']) {
+      let unFocus = this.stage.on(S.click, (ev: MouseEvent) => { this.setFocus(false)}, this, false, null, true)
+      unFocus[S.Aname] = `EditBox.unFocus`
+      this.stage['EB.unFocus'] = unFocus
+    }
   }
   setBind(w: number, h: number, init?: string, focus?: Binding, blur?: Binding) {
 

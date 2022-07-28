@@ -121,9 +121,9 @@ export class KeyBinder extends EventDispatcher {
     }
     if (str.length == 1) {
       // Assert: a single [ASCII/utf8] char in the string
-      if (UPPER.exec(str)) {
+      if (UPPER.test(str)) {
         bits.shift = true;
-      } else if (LOWER.exec(str)) {
+      } else if (LOWER.test(str)) {
         str = str.toUpperCase();
       }
     }
@@ -185,6 +185,7 @@ export class KeyBinder extends EventDispatcher {
     }
     return kcode
   }
+  /** bindRegexp is constrained to match only on 'plain' (non-chord) alpha keys */
   _bindRegex(keymap: Keymap, regex: RegExp, bind: Binding): RegExp {
     if (!keymap.regexs) keymap.regexs = []
     keymap.regexs.unshift({ regex, bind })
@@ -254,27 +255,29 @@ export class KeyBinder extends EventDispatcher {
   /**
    * Dispatch based on keycode.
    * @param kcode extracted from KeyboardEvent, or synthesized from getKeyCodeFromChar(str)
-   * @param e optional KeyboardEvent for logging
+   * @param e either a KeyboardEvent with .key, or the equivalent .key string
    */
   dispatchKeyCode(kcode: number, e?: string | KeyboardEvent): boolean {
     let keymap: Keymap = !!this.focus ? this.getKeymap(this.focus) : this.keymap
     let keyStr = (typeof e === 'string') ? e : (e as KeyboardEvent).key
+    let plain = (kcode & (KEYUP | ALT | META | CTRL)) == 0  // may be named-char! (Space, Bel, Arrow*)
     let bind: Binding = keymap[kcode] 
-    if (!bind && !!keymap.regexs && keymap.regexs.length > 0) {
+    // check regexs if kcode indicates keyDown [TODO: have a map of keyUp-Regexps]
+    if (!bind && plain && !!keymap.regexs && keymap.regexs.length > 0) {
       let regexs = keymap.regexs
       let rexBind = regexs.find(({regex, bind}) => {
         this.details && console.log(stime(this, ".dispatchKeyCode: find"), { keyStr, regex, bind}, regex.exec(keyStr))
-        return !!regex.exec(keyStr)
+        return regex.test(keyStr)
       })
       this.details && console.log(stime(this, `.dispatchKeyCode: rexBind=`), rexBind)
-      bind = !!rexBind && rexBind.bind
+      bind = rexBind?.bind
     }
     if (this.details) // TODO: maybe use console.debug()
       console.log(stime(this, ".dispatchKeyCode:"), 
       { keyStr, bind, kcode, keymap: this.showBindings(keymap), regexs: keymap.regexs, focus: this.focus }, e);
     let rv: boolean;
     if (!!bind && typeof (bind.func) == 'function') {
-      rv = bind.func.call(bind.thisArg, bind.argVal, e) // false | undefined indicates preventDefault
+      rv = bind.func.call(bind.thisArg, bind.argVal, keyStr) // false | undefined indicates preventDefault
       if (rv !== true && e instanceof Event) e.preventDefault()
     }
     return rv // indicating no preventDefault...
