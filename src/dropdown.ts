@@ -1,39 +1,24 @@
-import { Container, Event, MouseEvent, Rectangle, Shape, Stage, Text } from "@thegraid/easeljs-module";
-import { C, F, Obj, S, XY } from './index.js' //'@thegraid/createjs-lib'; //
+import { Container, MouseEvent, Rectangle, Shape, Text } from "@thegraid/easeljs-module";
+import { ChoiceItem, ChoiceStyle, Chooser } from "./chooser.js";
+import { C, F, Obj, S, XY } from './index.js'; //'@thegraid/createjs-lib'; //
 
 // https://jsfiddle.net/s1o1wswr/13/
 
-// var stage = new createjs.Stage("stage");
-// var bkg = new createjs.Shape()
-// bkg.graphics.f("white").rect(0, 0, 400, 300);
-// stage.addChild(bkg);
-// stage.enableMouseOver(10);
-// var items = [
-//     { text: "長距離練習航海", desc: "外海まで足を延ばし、艦隊の練度を高めよう！" }, 
-//     { text: "警備任務", desc: "鎮守府の担当海域をパトロールして、領海の安全を守ろう！" },
-//     { text: "防空射撃演習", desc: "敵艦載機襲来に備えて、対空射撃や回避運動の訓練をしよう！" }
-// ];
-// var dropdown = new EaselDropdown(stage, items, 100, 50, 200, 50, 20);
-// dropdown.changed = function (item) {
-// 	$("#test").val(item.text + "\n" +  item.desc);
-// 	// or
-// 	// $("#test").val(dropdown.select());
-// };
-// dropdown.selectAt(0);
-// createjs.Ticker.addEventListener("tick", function (e) { stage.update(); });
-
-export interface DropdownItem {
-  /** text to display in Item */
+/**
+ * Items in a DropdownChoice.items array
+ */
+export interface DropdownItem extends ChoiceItem {
+  /** text displayed when Item is expanded (& _rootButton.text when selected) */
   text: string;
   /** value associated, if different from text */
-  value?: any;
-  /** DisplayObject-Container holding the text (and mouse actions, etc.) */
+  value: any;
+  /** DisplayObject-Container holding Text (and mouse actions, etc.) */
   button?: DropdownButton;
 }
 
 // DropdownButton.text field is createjs.Text, not string.
 // Use DropdownButton.text.text field to change button caption. 
-export interface DropdownStyle {
+export interface DropdownStyle extends ChoiceStyle {
   fillColor?: string
   fillColorOver?: string
   textColor?: string
@@ -98,7 +83,9 @@ export class DropdownButton extends Container {
   static mergeStyle(style: DropdownStyle, defStyle = DropdownButton.defaultStyle) {
     return Obj.mergeDefaults(style, defStyle)
   }
-
+  get arrow_c() { return this.style.arrowColor || this.style.rootTextColor || this.style.textColor }
+  get arrow_r() { return this.fontSize / 2 }
+  get arrow_w() { return this.arrow_c === '0' ? 0 : 2 * (this.arrow_r + 2)}
   /**
    * Contains a rectangular Shape, a Text|TextBox and maybe an Arrow.
    * @param text supply "" to designate the _rootButton to make an Arrow
@@ -127,21 +114,21 @@ export class DropdownButton extends Container {
     this.r = r
     let _self = this // OR: could use .on(,,,this)
  
-    let makeArrow = (item_h: number, font_h: number): Shape => {
+    let addArrow = (item_h: number): Shape => {
       let arrow = new Shape()
-      let arrow_c = this.style.arrowColor || this.style.rootTextColor || this.style.textColor
-      let arrow_r = font_h / 2;     // AKA: "radius"
+      let arrow_r = this.arrow_r;     // AKA: "radius"
       let arrow_y = item_h / 2 - arrow_r * .2
       let arrow_x = (this.w - arrow_r - 2); // 5% "margin/border" on end?
-      arrow.graphics.beginFill(arrow_c).drawPolyStar(arrow_x, arrow_y, arrow_r, 3, 0, 90)
+      arrow.graphics.beginFill(this.arrow_c).drawPolyStar(arrow_x, arrow_y, arrow_r, 3, 0, 90)
       arrow.mouseEnabled = false
-      this._arrowWidth = (arrow_c === 'transparent') ? 0 : 2 * (arrow_r + 2)
+      this.addChild(arrow)      
       return arrow
     }
 
     this.addChild(this.shape);
     this.addChild(this.text);
     this.initText(text);
+    this._arrowWidth = this.arrow_w  // 0 or ~fontSize
     if (text == "") { // indicates making the rootButton
       this.style = Obj.fromEntriesOf(this.style) // copy & paste:
       this.style.fillColor = this.style.rootColor || this.style.fillColor
@@ -149,12 +136,7 @@ export class DropdownButton extends Container {
       this.style.textColor = this.style.rootTextColor || this.style.textColor
       this.style.textColorOver = this.style.rootTextColorOver || this.style.textColorOver
 
-      this._arrowShape = makeArrow(this.h, this.fontSize)
-      this.addChild(this._arrowShape);
-    } else {
-      let arrow_c = this.style.arrowColor || this.style.rootTextColor || this.style.textColor
-      let arrow_r = this.fontSize / 2;     // AKA: "radius"
-      this._arrowWidth = (arrow_c === 'transparent') ? 0 : 2 * (arrow_r + 2)
+      if (this.style.arrowColor != '0') addArrow(this.h)
     }
 
     // Shape Events
@@ -217,33 +199,31 @@ export class DropdownButton extends Container {
 /**
  * A DropdownMenu, with DropdownItem[], one of which may be 'selected'.
  * When the selected Item changes, the onItemChanged method/function is invoked.
+ * 
+ * a "DropdownChooser"
  */
-export class DropdownChoice extends Container {
-  items: DropdownItem[];
+export class DropdownChoice extends Chooser {
+  override items: DropdownItem[];
   _boundsCollapsed: Rectangle
   _boundsExpand: Rectangle
   _expand = false;
   _selected: DropdownItem; // selected item
   _index: number; // index of selected item
   _rootButton: DropdownButton
-  _itemChanged: (item: DropdownItem) => void;
-  /** application sets this callback, to react when selected Item changes. */
-  onItemChanged(f: (item: DropdownItem) => void) { this._itemChanged = f }
-
+  
   /** show or hide all the item.button(s) 
    * @param expand true to toggle state, false to collapse
    */
   protected dropdown(expand?: boolean) {
     if (expand) expand = !this._expand;
-    // onChange may have deconstructed the Containers
+    // bring to top of parent (Note: onChange() may have deconstructed the Containers)
     this.parent?.parent?.setChildIndex(this.parent, this.parent.parent.numChildren -1)
     this.items.forEach(item => item.button.visible = expand)
     this._expand = expand;
     //console.log(stime(this, ".dropdown: expand="), expand)
   };
-  enable() {
-    // Stage Event
-    this.stage.enableMouseOver()
+  override enable() {
+    this.stage.enableMouseOver() // Stage Event
   }
   /** @return true if mouseEvent is over this Dropdown */
   isMouseOver(e: MouseEvent): boolean {
@@ -262,15 +242,14 @@ export class DropdownChoice extends Container {
    * @param style size and colors applied to each DropdownButton
    */
   constructor( items: DropdownItem[], item_w: number, item_h: number, style?: DropdownStyle) {
-    super()
-    this.items = items
+    super(items, item_w, item_h, style)
 
     // Private Members
     // bounds in parent Container coordinates:
     this._boundsCollapsed = new Rectangle(this.x, this.y, item_w, item_h);
     this._boundsExpand = this._boundsCollapsed.clone();
     this._expand = false;
-    let spacing = style ? style.spacing : 0; // item spacing
+    let spacing = style?.spacing || 0; // item spacing OR 'lead'
 
     this._rootButton = new DropdownButton("", item_w, item_h, 0, () => this.rootclick(), style);
     this.addChild(this._rootButton)
@@ -288,21 +267,13 @@ export class DropdownChoice extends Container {
   rootclick() { this.dropdown(true) }
   itemclick(item: DropdownItem) { this.dropdown(false); this.select(item) }
 
-  static maxItemWidth(items: DropdownItem[], font_h: number, fontName?: string) {
-    let w = 0
-    items.forEach(item => 
-      w = Math.max(w, new Text(item.text, F.fontSpec(font_h, fontName)).getMeasuredWidth()
-    ))
-    return w
-  }
-
   // Public Members
   /**
    * get or change the selected item.
    * @param item item to select; or null to return currently selected item
    * @returns selected item 
    */
-  select(item: DropdownItem): DropdownItem {
+  override select(item: DropdownItem): DropdownItem {
     if (item == undefined) item = this._selected // "reselect" same item [no-op]
     let index = this.items.indexOf(item); // -1 -> retain current selection
     if (index == this._index) return item // no change, nothing to do
@@ -318,12 +289,6 @@ export class DropdownChoice extends Container {
   selectAt(index: number): DropdownItem {
     return this.select(this.items[index])
   }
-  /** delegates to this._itemChanged, as set by this.onItemChanged() */
-  changed(item: DropdownItem) {
-    if (typeof(this._itemChanged) == 'function')
-      this._itemChanged(item)
-   }
-
 }
 
 /** auto-select next item in cycle. */
@@ -336,12 +301,13 @@ export class CycleChoice extends DropdownChoice {
   }
 }
 
-/** present [false, true] with any pair of string: ['false', 'true'] */
+/** present [false, true, ...] with any pair of string: ['false', 'true', ...] */
 export class BoolChoice extends CycleChoice {
+  /** typically: items.length == 2 */
   constructor(items: DropdownItem[], item_w: number, item_h: number, style?: DropdownStyle) {
     let boolValues = (items: DropdownItem[]) => { 
       items.forEach((item, ndx) => {
-        if (item.text == item.value) item.value = (ndx == 1)
+        if (item.text == item.value) item.value = (ndx != 0)
       })
       return items
     }

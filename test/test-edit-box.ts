@@ -3,7 +3,7 @@ import { EditBox } from './src/index.js'
 
 let kb = new KeyBinder()
 //kb.details = true
-let tb = new EditBox('lightgrey', {x: 0, y: 0, w: 600, h: 400})
+let tb = new EditBox({x: 0, y: 0, w: 600, h: 400}, 'lightgrey')
 tb.setFocus()
 kb.dispatchChar("a");
 kb.dispatchChar("b");
@@ -12,7 +12,7 @@ kb.dispatchChar("c");
 kb.dispatchChar("d");
 kb.dispatchChar("e");
 kb.dispatchChar("f");
-console.log("test-edit-box.ts: getText=", tb.getText())
+console.log("test-edit-box.ts: innerText=", tb.innerText)
 kb.dispatchChar("Backspace");
 kb.dispatchChar("ArrowLeft");
 kb.dispatchChar("C-b");
@@ -20,4 +20,4 @@ kb.dispatchChar("C-k");
 kb.dispatchChar("C-e");
 kb.dispatchChar("C-a");
 kb.dispatchChar("C-y");
-console.log("test-edit-box.ts: getText=", tb.getText())
+console.log("test-edit-box.ts: innerText=", tb.innerText)

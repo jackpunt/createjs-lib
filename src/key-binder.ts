@@ -245,7 +245,9 @@ export class KeyBinder extends EventDispatcher {
   dispatchKey(e: KeyboardEvent) {
     return this.dispatchKeyCode(this.getKeyCodeFromEvent(e), e) // encode all the C-M-A-Shift bits:
   }
-  /** invoke keyBound function AS IF kcode(str) was received. */
+  /** invoke keyBound function AS IF kcode(str) was received. 
+   * @param str KeyCode like "^-C-M-z"
+   */
   dispatchChar(str: string) {
     return this.dispatchKeyCode(this.getKeyCodeFromChar(str), str) // for ex: "^-C-M-z"
   }

@@ -1,42 +1,53 @@
 import { Container, Text } from "@thegraid/easeljs-module";
+import type { ChoiceStyle, ChoiceType, Chooser, ChooserConst } from "./chooser";
 import { DropdownButton, DropdownChoice, DropdownItem, DropdownStyle } from "./dropdown";
-import { C, F, stime } from './index.js' //'@thegraid/createjs-lib' //
+import { C, F, maxTextWidth, stime, TextStyle } from './index.js' //'@thegraid/createjs-lib' //
 
-export { DropdownButton, DropdownItem, DropdownStyle, DropdownChoice }
-export type ParamType = any; // string | number | boolean
-/** Supplied by user */
+export type ParamType = ChoiceType
+
+/** Supplied by user: affects spec/line/item; opts.style -> chooser */
 export interface ParamOpts {
   name?: string
   fontName?: string
   fontSize?: number
   fontColor?: string
-  style?: DropdownStyle
+  style?: ChoiceStyle
   onChange?: (item: ParamItem) => void
   target?: object
-  chooser?: new (items: DropdownItem[], item_w: number, item_h: number, style?: DropdownStyle) => DropdownChoice // Constructor for DropdowChoice or subclass
+  chooser?: ChooserConst
 }
 /** Created by ParamGUI */
 export interface ParamSpec extends ParamOpts {
   fieldName: string
-  target?: object
+  target: object
   name?: string
   type?: string // boolean, string, string[], number,  ? (not used!?)
   choices?: ParamItem[]
 }
+/** ParamGUI extension */
 export interface ParamItem extends DropdownItem {
-  text: string
+  /** text displayed when Item is expanded (& _rootButton.text when selected) */
+  text: string;
+  /** value associated, if different from text */
+  value: any;
+  /**  */
   fieldName?: string
-  value?: ParamType
-  bgColor?: string
 }
 // in each Item: {[button:DropdownButton], text: string, fieldName: string, value: ParamType}
-
+/** each row of ParamGUI: 
+ * - spec: ParamSpec { fieldName, target } 
+ * - chooser: DropdownChoice { items: { value[] } }
+ */
 export class ParamLine extends Container {
+  constructor(spec: ParamSpec) {
+    super()
+    this.spec = spec
+  }
   get height():number { return this.getBounds().height }
   get width(): number { return this.getBounds().width }
   chooser_w: number = 0 // width of chooser component
   chooser_x: number = 0 // where (on the line) to place chooser 
-  chooser: DropdownChoice
+  chooser: Chooser
   spec: ParamSpec
   nameText: Text
 }
@@ -77,12 +88,17 @@ export class ParamGUI extends Container {
   /** retrieve spec by fieldName */
   spec(fieldName: string) { return this.specs.find(s => s.fieldName == fieldName) }
 
-  /** make a spec and push onto list of specs */
-  makeParamSpec(fieldName: string, ary: any[], opts: ParamOpts = { fontSize: 32, fontColor: C.black }): ParamSpec {
-    let { name, fontSize, fontColor, onChange, target, chooser } = opts
-    let choices = this.makeChoiceItems(fieldName, ary) // [{text, fieldname, value}]
+  /** make a spec and push onto list of specs
+   * @param fieldName 
+   * @param valueAry array of choices (or [value] mutable by the chooser)
+   * @param opts style for this spec/line/item; opts.style -> this.defStyle -> chooser
+   */
+  makeParamSpec(fieldName: string, valueAry: any[], opts: ParamOpts = {}): ParamSpec {
+    let { name, fontSize, fontColor, fontName, onChange, target, chooser } = opts
+    target = target || this.target // so spec *always* has a target
+    let choices = this.makeChoiceItems(fieldName, valueAry) // [{text, fieldname, value}]
     let style = DropdownButton.mergeStyle(opts.style || {}, this.defStyle)
-    let spec = { name, fieldName, choices, fontSize, fontColor, style, onChange, target, chooser }
+    let spec = { name, fieldName, choices, fontSize, fontColor, fontName, style, onChange, target, chooser }
     this.specs.push(spec)
     return spec
   }
@@ -124,10 +140,11 @@ export class ParamGUI extends Container {
     line.nameText = text
     return text
   }
-  /** create DropdownChoice and Text label for the nth line of this ParamGUI */
+  /** create ParamLine with Chooser(spec.choices) and Text label 
+   * for the nth line of this ParamGUI 
+   */
   addLine(spec: ParamSpec, nth: number) {
-    let line = new ParamLine()
-    line.spec = spec
+    let line = new ParamLine(spec)
     line.y = 0
     this.lines.forEach(pl => line.y += (pl.height + this.lead)) // pre-existing lines
     this.lines.push(line) // so nameText can findLine()
@@ -140,40 +157,40 @@ export class ParamGUI extends Container {
     this.ymax = line.y + line.height          // bottom of last line
 
     let fs = spec.fontSize || 32
-    let maxw = DropdownChoice.maxItemWidth(spec.choices, fs, spec.fontName)
+    let maxw = maxTextWidth(spec.choices, fs, spec.fontName)
     line.chooser_w = maxw + 1.5 * fs // text_width, some space, Arrow
     line.chooser_x = 0 - line.chooser_w - .5 * fs // .5 fs between chooser and name
     this.addChooser(line)
     return line
   }
 
-  /** create and configure a DropdownChoice 'Chooser' for the given line. */
+  /** create and configure a Chooser(choices) for the given line. */
   addChooser(line: ParamLine) {
     let choices = line.spec.choices
     let boxh = line.height
-    let ddConstructor = line.spec.chooser || DropdownChoice
-    let ddc = new ddConstructor(choices, line.chooser_w, boxh, line.spec.style)
-    ddc.x = line.chooser_x // ddc.y = line.text.y = 0 relative to ParamLine, same as line.text
-    line.chooser = ddc
-    line.addChild(ddc)
+    let chooserConst = line.spec.chooser || (DropdownChoice as ChooserConst)
+    let chooser = new chooserConst(choices, line.chooser_w, boxh, line.spec.style)
+    chooser.x = line.chooser_x // ddc.y = line.text.y = 0 relative to ParamLine, same as line.text
+    line.chooser = chooser
+    line.addChild(chooser)
     let fieldName = line.spec.fieldName, target = line.spec.target, value = this.getValue(fieldName, target)
-    ddc.onItemChanged(!!line.spec.onChange ? line.spec.onChange : (item) => { this.setValue(item, target) })
+    chooser.onItemChanged(!!line.spec.onChange ? line.spec.onChange : (item) => { this.setValue(item, target) })
     this.selectValue(fieldName, value, line) // set initial value
-    ddc.enable()
-    return ddc
+    chooser.enable()
+    return chooser
   }
-  /** when a new value is selected, push it back into the target object.
-   * auto-invoke onItemChanged() => (item)=>setValue(item) [or from spec.onChange(...) ]
+  /** when a new value is selected, set it into the target object.
+   * auto-invoke onItemChanged() => (item)=>setValue(item) [or spec.onChange(...) ]
    * suitable entry-point for eval_params: (fieldName, value) 
    */
   selectValue(fieldName: string, value: ParamType, line?: ParamLine): ParamItem | undefined {
     line = line || this.findLine(fieldName)
     if (!line) { return undefined }  // fieldName not available
     // invalid value leaves *current* value:
-    let item = line.spec.choices.find(item => (item.value === value)) // {text, fieldName?, value?, bgColor?}
-    if (!!item) {
-      line.chooser.select(item) // will auto-invoke onItemChanged => setValue(item) OR onChange(...)
-    }
+    let item = line.spec.choices.find(item => (item.value === value)) // {text, value?, fieldName?}
+    // Chooser may be 'set-able' rather than 'select-able'
+    line?.chooser.setValue(value, item || line.spec.choices[0], line.spec.target) ||
+      (item && line?.chooser.select(item)) // will auto-invoke onItemChanged => setValue(item) OR onChange(...)
     return item
   }
 
