@@ -1,6 +1,6 @@
 import { Container, Graphics, Shape, Text } from "@thegraid/easeljs-module"
 import { C, F, S, textWidth, XYWH } from "./index.js"
-import { KeyBinder, Binding  } from "./key-binder.js";
+import { KeyBinder, Binding, Keymap, BindFunc  } from "./key-binder.js";
 
 export type TextStyle = { bgColor: string, fontSize?: number, fontName?: string, textColor?: string }
 /** a Container with a [rectangle] Shape and a Text.
@@ -42,10 +42,10 @@ export class EditBox extends Container {
   constructor(rect: XYWH = { x: 0, y: 0, w: 100, h: 40 }, style: TextStyle) {
     super()
     this.rect = rect
-    this.initKeys()
     this.addChild(this.box)
     this.addChild(this.text)
     this.reset(rect, '', style)
+    this.initKeys()
   }
   reset(rect: XYWH, text = this.buf.join(''), style?: TextStyle) {
     this.box.graphics.c().f(this.bgColor).rect(rect.x, rect.y, rect.w, rect.h)
@@ -53,7 +53,7 @@ export class EditBox extends Container {
   }
 
   initKeys() {
-    let selfKey: RegExp = /^(\S| )$/, kb = KeyBinder.keyBinder, scope = this
+    let selfKey: RegExp = /^(\S| )$/, kb = KeyBinder.keyBinder, scope = this.keyScope
     kb.setKey(selfKey, { thisArg: this, func: this.selfInsert }, scope)
     kb.setKey("Enter", { thisArg: this, func: this.newline }, scope)
     kb.setKey("Backspace", { thisArg: this, func: this.delBack }, scope)
@@ -68,7 +68,7 @@ export class EditBox extends Container {
     kb.setKey("C-d", { thisArg: this, func: this.delForw }, scope)
     kb.setKey("C-k", { thisArg: this, func: this.kill }, scope)
     kb.setKey("C-y", { thisArg: this, func: this.yank}, scope)
-    this.on(S.click, (ev: MouseEvent) => {this.setFocus(true); ev.stopImmediatePropagation()})
+    this.on(S.click, (ev: MouseEvent) => { this.setFocus(true); ev.stopImmediatePropagation() })
   }
   setStyle(style?: TextStyle) {
     style?.hasOwnProperty('fontSize') && (this.fontSize = style.fontSize)
@@ -90,15 +90,14 @@ export class EditBox extends Container {
   repaint(text = this.buf.join('')) {
     // first: assume no line-wrap
     this.text.text = text    // TODO: show cursor moved...
-    let lines = text.split('\n'), col = 0, pt = this.point, liny = 0
-    lines.forEach(line => {
-      if (pt >= col && pt <= col + line.length) {
-        let pre = line.slice(0, pt-col)
+    let lines = text.split('\n'), bol = 0, pt = this.point
+    lines.forEach((line, n) => {
+      if (pt >= bol && pt <= bol + line.length) {
+        let pre = line.slice(0, pt-bol)
         this.cmark.x = textWidth(pre, this.fontSize, this.fontName)
-        this.cmark.y = liny
+        this.cmark.y = n * this.fontSize
       }
-      liny += this.fontSize
-      col += (line.length+1)
+      bol += (line.length + 1)
     })
     this.stage?.update()
   }
@@ -147,9 +146,11 @@ export class EditBox extends Container {
     this.point += EditBox.killBuf.length
     this.repaint()
   }
+  //_keyMap: Keymap
+  keyScope: { lastFunc?: BindFunc, _keyMap?: Keymap } = {}
   
   setFocus(f = true) {
-    KeyBinder.keyBinder.setFocus(f ? this : undefined)
+    KeyBinder.keyBinder.setFocus(f ? this.keyScope : undefined)
     if (this.stage && !this.stage['EB.unFocus']) {
       let unFocus = this.stage.on(S.click, (ev: MouseEvent) => { this.setFocus(false)}, this, false, null, true)
       unFocus[S.Aname] = `EditBox.unFocus`

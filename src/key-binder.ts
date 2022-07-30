@@ -32,13 +32,13 @@ import { S, stime } from './index.js'
 type Cast<X, Y> = X extends Y ? X : Y
 type KeyBits = { shift?: boolean, ctrl?: boolean, meta?: boolean, alt?: boolean, keyup?: boolean }
 /** unless BindFunc returns true, then e.preventDefault() */
-type BindFunc = (arg?: any, e?: KeyboardEvent | string) => boolean | void
-type keyScope = { _keymap?: Keymap }
+export type BindFunc = (arg?: any, e?: KeyboardEvent | string) => boolean | void
+export type KeyScope = { keymap?: Keymap, lastFunc?: BindFunc }
 /** 
  * kcode is bound to Binding, invokes: func.call(scope, argVal, event) 
  */
 export type Binding = { thisArg?: object, func: BindFunc, argVal?: any, _kcode?: number }
-export type Keymap = { [key: number]: Binding, scope?: keyScope | "global", regexs?: { regex: RegExp, bind: Binding }[] }
+export type Keymap = { [key: number]: Binding, scope?: KeyScope, regexs?: { regex: RegExp, bind: Binding }[] }
 
 const SHIFT: number = 512;
 const CTRL: number = 1024;
@@ -56,7 +56,7 @@ upshiftedKeys.forEach((char, n) => shiftedKeys.set(char, unshiftedKeys[n]))
 //Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZ").forEach(char => shiftedKeys.set(char, char.toLowerCase()))
 
 /** EventDispatcher with keybinding (key => thisArg.func(argVal, e)) */
-export class KeyBinder extends EventDispatcher {
+export class KeyBinder extends EventDispatcher implements KeyScope {
   static keyBinder: KeyBinder;
   static instanceId = 0
   private instanceId = 0;
@@ -64,7 +64,7 @@ export class KeyBinder extends EventDispatcher {
     super()
     this.instanceId = KeyBinder.instanceId++
     this.keymap = Array<Binding>()
-    this.keymap.scope = "global"
+    this.keymap.scope = this
     this.keymap.regexs = []
     console.log(stime(this, ".constructor Id = "), this.instanceId );
     if (!!KeyBinder.keyBinder) alert(`Making Alternate KeyBinder!! ${this.instanceId}`)
@@ -72,10 +72,12 @@ export class KeyBinder extends EventDispatcher {
     KeyBinder.keyBinder = this
   }
 
-  /** global map from e.keyCode to Binding {thisArg, func, argval}  */
-  private keymap: Keymap;
-  /** GLOBAL FOCUS: local keymap bound to some DisplayObject (or any object) */
-  private focus: object; // target for localSetKey bindings (adds _keymap field)
+  /** global map from e.keyCode to Binding {thisArg, func: BindFunc, argval}  */
+  keymap: Keymap;
+  /** last BindFunc invoked from this keymap. */
+  lastFunc: BindFunc
+  /** GLOBAL FOCUS: a keymap bound to a KeyScope object */
+  private focus: KeyScope = this; // target for localSetKey bindings (adds 'keymap' field)
 
   /**
    * Convert shift indicators to binary-mapped number.
@@ -218,20 +220,20 @@ export class KeyBinder extends EventDispatcher {
     return this._bindKey(this.getKeymap(scope), key, bind);
   }
 
-  localSetKeyFromChar(scope: keyScope, str: string, bind: Binding) {
+  localSetKeyFromChar(scope: KeyScope, str: string, bind: Binding) {
     return this._bindKey(this.getKeymap(scope), this.getKeyCodeFromChar(str), bind);
   }
-  localBindToRegex(scope: keyScope, regex: RegExp, bind: Binding) {
+  localBindToRegex(scope: KeyScope, regex: RegExp, bind: Binding) {
     let keymap = this.getKeymap(scope)
     let rv = this._bindRegex(keymap, regex, bind)
     this.details && console.log(`localBindToRegex`, keymap, keymap.regexs, keymap.regexs[0])
     return rv
   }
 
-  getKeymap(scope: keyScope): Keymap {
+  getKeymap(scope: KeyScope): Keymap {
     if (!scope) return this.keymap
-    let keymap = scope._keymap
-    if (!keymap) scope._keymap = keymap = Array<Binding>()
+    let keymap = scope.keymap
+    if (!keymap) scope.keymap = keymap = Array<Binding>()
     return keymap as Keymap
   }
 
@@ -248,7 +250,7 @@ export class KeyBinder extends EventDispatcher {
    * Text/EditBox can listen for 'Enter' and release focus (blur) [also: onCollapse of menu]
    */
   dispatchKey(e: KeyboardEvent) {
-    return this.dispatchKeyCode(this.getKeyCodeFromEvent(e), e) // encode all the C-M-A-Shift bits:
+    return this.dispatchKeyCode(this.getKeyCodeFromEvent(e), e.key, e) // encode all the C-M-A-Shift bits:
   }
   /** invoke keyBound function AS IF kcode(str) was received. 
    * @param str KeyCode like "^-C-M-z"
@@ -261,9 +263,8 @@ export class KeyBinder extends EventDispatcher {
    * @param kcode extracted from KeyboardEvent, or synthesized from getKeyCodeFromChar(str)
    * @param e either a KeyboardEvent with .key, or the equivalent .key string
    */
-  dispatchKeyCode(kcode: number, e?: string | KeyboardEvent): boolean {
-    let keymap: Keymap = !!this.focus ? this.getKeymap(this.focus) : this.keymap
-    let keyStr = (typeof e === 'string') ? e : (e as KeyboardEvent).key
+  dispatchKeyCode(kcode: number, keyStr?: string, e?: KeyboardEvent ): boolean {
+    let keymap: Keymap = this.getKeymap(this.focus)
     let plain = (kcode & (KEYUP | ALT | META | CTRL)) == 0  // may be named-char! (Space, Bel, Arrow*)
     let bind: Binding = keymap[kcode] 
     // check regexs if kcode indicates keyDown [TODO: have a map of keyUp-Regexps]
@@ -283,6 +284,7 @@ export class KeyBinder extends EventDispatcher {
     if (!!bind && typeof (bind.func) == 'function') {
       rv = bind.func.call(bind.thisArg, bind.argVal, keyStr) // false | undefined indicates preventDefault
       if (rv !== true && e instanceof Event) e.preventDefault()
+      this.focus.lastFunc = bind.func
     }
     return rv // indicating no preventDefault...
   }
@@ -292,7 +294,7 @@ export class KeyBinder extends EventDispatcher {
     return (keymap as Binding[]).map(b => showBind(b))
   }
   /** use _keymap of the given target (or global if not supplied) */
-  setFocus(target?: object) {
+  setFocus(target: KeyScope = this) {
     this.focus = target
   }
   details = false // details of event to console.log 
