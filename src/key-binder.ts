@@ -32,9 +32,9 @@ import { S, stime } from './index.js'
 type Cast<X, Y> = X extends Y ? X : Y
 type KeyBits = { shift?: boolean, ctrl?: boolean, meta?: boolean, alt?: boolean, keyup?: boolean }
 /** unless BindFunc returns true, then e.preventDefault() */
-export type BindFunc = (arg?: any, e?: KeyboardEvent | string) => boolean | void
+export type BindFunc = (arg?: any, key?: KeyboardEvent | string) => boolean | void
 export type KeyScope = { keymap?: Keymap, lastFunc?: BindFunc }
-/** 
+/**
  * kcode is bound to Binding, invokes: func.call(scope, argVal, event) 
  */
 export type Binding = { thisArg?: object, func: BindFunc, argVal?: any, _kcode?: number }
@@ -212,9 +212,9 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
   globalSetKeyFromChar(str: string, bind: Binding) {
     return this.globalSetKey(this.getKeyCodeFromChar(str), bind);
   }
-  setKey(key: RegExp, bind: Binding, scope?: object): RegExp
-  setKey(key: number | string, bind: Binding, scope?: object): number
-  setKey(key: number | string | RegExp, bind: Binding, scope?: object): number | RegExp {
+  setKey(key: RegExp, bind: Binding, scope?: KeyScope): RegExp
+  setKey(key: number | string, bind: Binding, scope?: KeyScope): number
+  setKey(key: number | string | RegExp, bind: Binding, scope?: KeyScope): number | RegExp {
     if (key instanceof RegExp) return this.localBindToRegex(scope, key, bind)
     if (typeof key === 'string') key = this.getKeyCodeFromChar(key)
     return this._bindKey(this.getKeymap(scope), key, bind);

@@ -55,7 +55,6 @@ export class EditBox extends Container {
   initKeys() {
     let selfKey: RegExp = /^(\S| )$/, kb = KeyBinder.keyBinder, scope = this.keyScope
     kb.setKey(selfKey, { thisArg: this, func: this.selfInsert }, scope)
-    kb.setKey("Enter", { thisArg: this, func: this.newline }, scope)
     kb.setKey("Backspace", { thisArg: this, func: this.delBack }, scope)
     kb.setKey("ArrowRight", { thisArg: this, func: this.movePoint, argVal: '+' }, scope)
     kb.setKey("ArrowLeft", { thisArg: this, func: this.movePoint, argVal: '-' }, scope)
@@ -67,7 +66,8 @@ export class EditBox extends Container {
     kb.setKey("C-e", { thisArg: this, func: this.movePoint, argVal: 'max' }, scope)
     kb.setKey("C-d", { thisArg: this, func: this.delForw }, scope)
     kb.setKey("C-k", { thisArg: this, func: this.kill }, scope)
-    kb.setKey("C-y", { thisArg: this, func: this.yank}, scope)
+    kb.setKey("C-y", { thisArg: this, func: this.yank }, scope)
+    kb.setKey("C-l", { thisArg: this, func: this.repaint }, scope)
     this.on(S.click, (ev: MouseEvent) => { this.setFocus(true); ev.stopImmediatePropagation() })
   }
   setStyle(style?: TextStyle) {
@@ -82,10 +82,22 @@ export class EditBox extends Container {
     this.text.font = F.fontSpec(this.fontSize, this.fontName)
     this.text.color = this.textColor
     this.buf = Array.from(text)
-    this.point = Math.max(0, this.buf.length)
+    this.point = this.buf.length
     this.repaint(text)
   }
   get innerText() { return this.text.text }
+  /**
+   * splice into the buffer (combination delete & insert)
+   * 
+   * this.buf.splice(pt, n, text); this.repaint()
+   * @param pt start deletion (current point)
+   * @param n chars to delete (all the rest)
+   * @param text string to insert ('')
+   */
+  splice(pt = this.point, n = this.buf.length, text = '') {
+    this.buf.splice(pt, n, ...Array.from(text))
+    this.repaint
+  }
 
   repaint(text = this.buf.join('')) {
     // first: assume no line-wrap

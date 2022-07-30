@@ -74,6 +74,7 @@ export class EditLines extends EditBox {
   override initKeys() {
     super.initKeys()
     let kb = KeyBinder.keyBinder, scope = this.keyScope
+    kb.setKey("Enter", { thisArg: this, func: this.newline }, scope)
     kb.setKey("C-a", { thisArg: this, func: this.movePoint, argVal: 'bol' }, scope)
     kb.setKey("C-e", { thisArg: this, func: this.movePoint, argVal: 'eol' }, scope)
     kb.setKey("ArrowRight", { thisArg: this, func: this.movePoint, argVal: '+' }, scope)
