@@ -95,9 +95,10 @@ export class ValueCounter extends Container {
   static makeOval(color: string, high: number, wide: number): Shape {
     let shape: Shape = new Shape();
     shape.graphics.beginFill(color).drawEllipse(0, 0, wide, high);
-    shape.regX = wide / 2; //at center of ellipse
-    shape.regY = high / 2;
-    shape.x = shape.y = 0;
+    // shape.regX = wide / 2; //at center of ellipse (old/bad idea; better to set shape.x = wide/2)
+    // shape.regY = high / 2;
+    // shape.x = shape.y = 0;
+    shape.x = -wide/2; shape.y = -high/2
     return shape;
   }
   /** remove and nullify text, remove and replace Oval & label. */

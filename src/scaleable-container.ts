@@ -1,9 +1,10 @@
 import { Container, DisplayObject, Point, Matrix2D, Event } from '@thegraid/easeljs-module';
-import { XY, S } from './index.js';
+import { XY, S, stime } from './index.js';
 
 export type SC = ScaleableContainer
 
-export type ScaleParams = { zscale?: number, initScale?: number, zero?: number, base?: number, min?: number, max?: number, limit?: number }
+/** see scaleInit */
+export type ScaleParams = { zscale?: number, initScale?: number, scale0?: number, steps?: number, unscaleMin?: number, scaleMax?: number, unscaleMax?: number }
 
 export class ScaleEvent extends Event {
   constructor(type: string, scale: number, scaleNdx: number) {
@@ -37,21 +38,21 @@ export class ScaleableContainer extends Container {
       parent.addChild(this);
       //console.log(stime(this, ".constructor parent="), parent);
     }
-    this.initIndex = this.makeZoomable(params)
+    this.makeZoomable(params)
   }
 
   //scaleAry=[0.625,0.7875,1,1.250,1.5752961,2,2.5,3,4,5,6,8,10,13,16,20,25,32,40,50,64,80,101,127,160,202,254,321,404,509,641]
   // [ -3:0.5, -2:0.65, -1:0.8, 0:1.0, 1:1.26, ... 30:1026] 
   /** scale factor of  for each increment of zoom */
-  private scaleAry: Array<number> = new Array();
-  private scaleNdx: number = 0;
-  private scaleMin: number = -3;       // 0.49990*zero
-  private scaleMax: number = 30;       // 1025.92*zero
-  private scaleBase: number = 1.26;
-  private scaleZero: number = 1;       // scale to fit TerrainMap [640/1024 = .625]
-  private scaleLimit: number = 1000;
+  protected scaleAry: Array<number> = [1]
+  protected scaleNdx: number = 0;
+  protected scaleBase: number = 1;
+  protected scaleMaxNdx = 32
+  protected unscaleMax = 1
+  protected unscaleMin = 1
+  protected macro = 2;
 
-  private stopEvent(ev) {
+  private stopEvent(ev: WheelEvent) {
     // prevent window scrolling on WheelEvent
     ev.stopPropagation();
     ev.preventDefault();
@@ -100,56 +101,57 @@ export class ScaleableContainer extends Container {
    * Note: unscaled objects *are* scaled when scaleNdx\<0 (if min\<0)
    * 
    * Note: unscaled objests are super-scaled (1.5x) when scaleNdx>(max-2)
-   * @param params: {initScale = 1, zero: 0.625}
-   * @param zero: default scale: 0.625
-   * @param base: scale per increment: 1.26
-   * @param min: lowest index: -3  (zero*base^(-min) =? ~1) ==> scaleAry[0] = ~1
-   * @param max: highest index: 30 
-   * @param limit: highest scale: 1000 
-   * @return scaleIndex to scale to 1 (or close as possible)
+   * @param params -
+   * - scale0: scale a 0: [1]
+   * - scaleMax: scale at max: [1000]
+   * - steps: highest index: [32]
+   * - initScale: initial scale: [zero]
+   * - unscaleMax: max scale of unscaled zoomed out [1/scaleAry[2]]
+   * - unscaleMin: min scale of unscaled zoomed in [1/scaleAry[steps-2]]
+   * @return initIndex [findIndex(initScale)]
    */
   public scaleInit(params: ScaleParams = {}): number {
-    let { zero = 0.625, base = 1.26, min = -3, max = 30, limit = 1000, initScale = base } = params;
-    //console.log(stime(this, ".scaleInit:  zero=") + zero + "  base=" + base + "  min=" + min + "  max=" + max + "  limit=" + limit);
-    //console.log(stime(this, ".scaleInit: params=") + params.zero, params.base, params.min, params.max, params.limit)
-    this.scaleAry = new Array();
-    this.scaleNdx = 0;         // ndx==0 -> scale=base (not same as: initNdx -> initScale)
-    this.scaleMin = min;
-    this.scaleMax = max;
-    this.scaleBase = base;
-    this.scaleZero = zero;
-    this.scaleLimit = limit;
-    this.initIndex = this.findIndex(initScale, true)
-    // console.log(stime(this, ".scaleInit: initIndex="), initIndex, this.scaleAry[initIndex],
-    //   "\n  scaleAry=", this.scaleAry.map(x => M.decimalRound(x, 3)));
-    this.scaleX = this.scaleY = zero;
-    this.setScaleIndex(this.initIndex);
+    let { scale0 = 1.0, steps: steps = 30, scaleMax: scaleMax = 1000, initScale = scale0, unscaleMin, unscaleMax } = params;
+    //console.log(stime(this, ".scaleInit:"), params)
+    this.scaleMaxNdx = steps;
+    this.setupScaleAry(scale0, scaleMax, steps)
+    this.unscaleMax = unscaleMax || (1/this.scaleAry[2])
+    this.unscaleMin = unscaleMin || (1/this.scaleAry[steps-2])
+    this.initIndex = this.scaleNdx = this.findIndex(initScale)
+    this.scaleContainer(0) // reset using this.initIndex
     return this.initIndex;
   }
+  setupScaleAry(scale0: number, scaleMax: number, nSteps: number) {
+    this.scaleAry = new Array();
+    this.scaleMaxNdx = nSteps
+    let base = this.scaleBase = 1 + Math.log(scaleMax / scale0) / (nSteps - 3)
+    for (let i: number = 0; i <= nSteps; i++) {
+      let scale = scale0 * Math.pow(base, i), rs = Math.round(scale)
+      if (Math.abs(scale - rs) < .08 * scale) scale = rs; // use integral scale when close
+      this.scaleAry[i] = scale
+    }
+  }
   /** find scaleIndex that gets closest to scale
-   * @param initScale the scale factor you want to get
+   * @param scale the scale factor you want to get (or 'base' when setting)
    * @param setAry true to setup the scaleAry, false to simply query [default]
    * @return index that gets closest so given scale
    */
-  findIndex(initScale: number, set: boolean = false) {
-    let min = this.scaleMin, max = this.scaleMax, base = this.scaleBase, zero = this.scaleZero
-    let initDist = 99999, initIndex = 1
-    for (let i: number = min; i <= max; i++) {
-      let s: number = zero * Math.pow(base, i);       // i=0 -> s=zero
-      // if s>1 try round to int
-      if (Math.abs(s - Math.round(s)) < .08 * s) s = Math.round(s); // use integral scale when close
-      if (Math.abs(s - initScale) < initDist) {
-        // find index with Scale closest to initScale.
-        initIndex = i
-        initDist = Math.abs(s - initScale)
-      }
-      if (set) this.scaleAry[i] = Math.min(s, this.scaleLimit);
-    }
-    return initIndex;
+  findIndex(scale: number) {
+    let idx = (ndx: number) => { return this.scaleAry[Math.min(Math.max(0, ndx), this.scaleMaxNdx)]}
+    let r = Math.log(scale/this.scale0) / this.scaleBase 
+    return this.scaleAry[idx(Math.round(r))]
   }
+
+  /** lowest scale for unscaled items */
+  get scale0() { return this.scaleAry[0] }
+  /** the current index into the scale array */
+  get scaleIndex() { return this.scaleNdx }
+  /** the current scale factor */
+  get scaleXY() { return this.scaleAry[this.scaleNdx] }
+
   /** set scaleIndex & return associated scale factor */
   getScale(ndx: number = this.scaleNdx): number {
-    ndx = Math.min(this.scaleMax, Math.max(this.scaleMin, ndx));
+    ndx = Math.min(this.scaleMaxNdx, Math.max(0, ndx));
     return this.scaleAry[this.scaleNdx = ndx]; // Hmm... this.scaleX ???
   }
   /** add di to find new index into scale array 
@@ -162,17 +164,17 @@ export class ScaleableContainer extends Container {
    * @return the new scale
    */
   setScaleIndex(si: number, xy?: XY): number {
-    let os = this.getScale();
+    let os = this.scaleXY
     let ns = this.getScale(si);
     return this.scaleInternal(os, ns, xy);
   }
   /**
    * rescale, set origin, position viewport
-   * @param si new scale index; [findIndex(initScale)]
+   * @param si new scale index; [0 -> scale0 aka initScale]
    * @param xy align xy at parent(0,0) [0,0]
    * @param sxy offset xy to screen position sxy [0,0]
    */
-  setScaleXY(si: number = this.findIndex(this.getScale(0)), xy: XY = { x: 0, y: 0 }, sxy: XY = { x: 0, y: 0 }): number {
+  setScaleXY(si = 0, xy: XY = { x: 0, y: 0 }, sxy: XY = { x: 0, y: 0 }): number {
     let ns = (this.setScaleIndex(si), this.scaleX)
     this.x = sxy.x - xy.x * ns; this.y = sxy.y - xy.y * ns
     return ns
@@ -192,23 +194,20 @@ export class ScaleableContainer extends Container {
    * @return the new scale
    */
   scaleContainer(di: number, xy?: XY): number {
-    let os: number = this.getScale();   // current -> old / original scale
+    let os: number = this.scaleXY;   // current -> old / original scale
     let ns: number = this.incScale(di);
     if (di == 0) { os = 0; ns = this.getScale(this.initIndex) }
     return this.scaleInternal(os, ns, xy);
   }
   /** convert from os to ns; if os=0 then reset to ns 
    * unscaleObj all this._unscale objects.
-   * @param os oldScale
+   * @param os oldScale (or 0 to force reset to p:XY)
    * @param ns newScale
    * @param p  fixed point around which to scale; default: (0,0) OR when os==0: reset to (x,y)
    */
   scaleInternal(os: number, ns: number, p: XY = { x: 0, y: 0}): number {
     let sc = this;
-    //console.log(stime(this, ".scaleInternal:"), cont, os, this.scaleNdx, ns);
-    // let px = (p ? p.x : 0);   // cont.x0 === 0
-    // let py = (p ? p.y : 0);   // Hmm: can we remove (x0,y0) and just use regXY to offset wrt stage?
-    //console.log(stime(this, ".scaleInternal: p="), p);
+    //console.log(stime(this, ".scaleInternal:"), cont, os, this.scaleNdx, ns, p);
     if (os == 0) {                  // special case to reset origin
       sc.x = p.x;
       sc.y = p.y;
@@ -219,12 +218,7 @@ export class ScaleableContainer extends Container {
     sc.scaleX = sc.scaleY = ns;
     // console.log(stime(this, ".scaleInternal:   os="), os.toFixed(4)+" ns="+ns.toFixed(4)+" scale="+scale.toFixed(4)
     //                           +"  p.x="+p.x+"  p.y="+p.y+"  x="+x+" y="+y);
-    this.invScale = 1 / ns;           // invScale is applied to all Unscaled children
-    if (this.scaleNdx < 0) {
-      this.invScale = 1 / this.scaleAry[0]; // ok to "shrink" icon when in negative scale range
-    } else if (this.scaleNdx >= this.scaleMax - 1) {
-      this.invScale = 1.5 / ns;        // zoom the icon when at full scale (last 2 stops)
-    }
+    this.setInvScale(ns)
     //console.log(stime(this, ".invScale="), this.invScale, this.scaleNdx, ns*this.invScale);
     this.unscaleAll();
     if (ns != os) this.dispatchEvent(new ScaleEvent(S.scaled, ns, this.scaleNdx))
@@ -249,18 +243,22 @@ export class ScaleableContainer extends Container {
     if (ndx < 0) return;
     delete this._unscaled[ndx];
   }
-  private unscaleObj(dobj: DisplayObject): void {
-    if (dobj != null) {
-      dobj.regX *= dobj.scaleX/this.invScale
-      dobj.regY *= dobj.scaleY/this.invScale
-      dobj.scaleX = this.invScale;
-      dobj.scaleY = this.invScale;
+  protected unscaleObj(dobj: DisplayObject, invScale = this.invScale): void {
+    if (dobj != undefined) {
+      dobj.regX *= dobj.scaleX/invScale
+      dobj.regY *= dobj.scaleY/invScale
+      dobj.scaleX = invScale;
+      dobj.scaleY = invScale;
     }
-    //      var tm:Matrix = dobj.transform.matrix;
-    //      tm.scale(invScale/tm.a, invScale/tm.d); // also scales tm.x, tm.y
-    //      dobj.transform.matrix = tm;
+    // var tm: Matrix = dobj.transform.matrix;
+    // tm.scale(invScale / tm.a, invScale / tm.d); // also scales tm.x, tm.y
+    // dobj.transform.matrix = tm;
   }
-  private unscaleAll(): void {
-    this._unscaled.forEach(item => this.unscaleObj(item));
+  protected setInvScale(ns = this.scaleX): number {
+    this.invScale = Math.min(this.unscaleMax, Math.max(1 / ns, this.unscaleMin))
+    return this.invScale
+  }
+  protected unscaleAll(invScale = this.invScale): void {
+    this._unscaled.forEach(item => this.unscaleObj(item, invScale));
   }
 }

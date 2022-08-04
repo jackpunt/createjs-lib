@@ -18,7 +18,7 @@ export class Dragole {
   static log(n: number, msg?: any, ...args: any[]) {
     Dragole.logEvent(msg);
     if (Dragole.count % n == 0) {
-      console.log(stime(this), msg, ...args);
+      console.log(stime(`Dragole.log`), msg, ...args);
       if (typeof (Dragole.logMsg) == 'function')
         Dragole.logMsg(msg, args)
     }
@@ -168,7 +168,7 @@ export class Dragger {
       obj.y -= dragCtx.dxy.y
     } else {
       Dragole.logEvent("unexpected currentTarget: " + obj.name);
-      console.log(stime(this, ".pressmove: unexpected target:"), { obj, event: event, targetC: dragCtx.targetC, targetD: dragCtx.targetC, dragCtx: Obj.fromEntriesOf(dragCtx) })
+      console.warn(stime(this, ".pressmove: unexpected target:"), { obj, event: event, targetC: dragCtx.targetC, targetD: dragCtx.targetC, dragCtx: Obj.fromEntriesOf(dragCtx) })
       return
     }
     //console.log(stime(this, ".pressmove: obj.x="), obj.x, "obj.y=", obj.y, "evt_pt=", evt_pt, "\n   event=", e, "\n   obj=",obj, "\n    dragCtx=", dragCtx)
@@ -178,11 +178,11 @@ export class Dragger {
           dragfunc.call(data.scope || obj.parent, obj, dragCtx)
         } catch (err) {
           Dragole.logEvent("dragfunc FAILED");
-          console.log(stime(this, ".pressmove: dragfunc FAILED: "), dragfunc, "dragCtx=", Obj.fromEntriesOf(dragCtx), "\n   err=", err)
+          console.warn(stime(this, ".pressmove: dragfunc FAILED: "), dragfunc, "dragCtx=", Obj.fromEntriesOf(dragCtx), "\n   err=", err)
         }
       } else {
         Dragole.logEvent("dragfunc UNKNOWN");
-        console.log(stime(this, ".pressmove: dragfunc UNKNOWN:"), dragfunc, "dragCtx=", Obj.fromEntriesOf(dragCtx))
+        console.warn(stime(this, ".pressmove: dragfunc UNKNOWN:"), dragfunc, "dragCtx=", Obj.fromEntriesOf(dragCtx))
       }
     }
     stage?.update();

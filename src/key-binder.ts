@@ -300,7 +300,7 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
   details = false // details of event to console.log 
 
   private initListeners() {
-    console.log(stime(this, ".initListeners: keyBinder="), this);
+    this.details && console.log(stime(this, ".initListeners: keyBinder="), this);
 
     this.on("keydown", this.dispatchKey, this)[S.Aname] = "KeyBinder.dispatchKey"
     this.on("keyup", this.dispatchKey, this)[S.Aname] = "KeyBinder.dispatchKey"
