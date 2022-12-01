@@ -37,8 +37,8 @@ export class ScaleableContainer extends Container {
     if (parent) {
       parent.addChild(this);
       //console.log(stime(this, ".constructor parent="), parent);
+      this.makeZoomable(params); // requires parent -> stage
     }
-    this.makeZoomable(params)
   }
 
   //scaleAry=[0.625,0.7875,1,1.250,1.5752961,2,2.5,3,4,5,6,8,10,13,16,20,25,32,40,50,64,80,101,127,160,202,254,321,404,509,641]
