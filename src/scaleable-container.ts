@@ -76,7 +76,7 @@ export class ScaleableContainer extends Container {
       let pmy: number = stage.mouseY / stage.scaleY;
       let p: Point = new Point(pmx, pmy);
       let delta = -e.deltaY // +N or -N (N greater for faster scroll, zscale for slower)
-      // noting that *I* have scroll reversed from Apply std of "drag the document"
+      // noting that *I* have scroll reversed from Apple std of "drag the document"
       //console.log(stime(this, ".mouseWheelHandler e="), delta, e.deltaX, e.deltaZ, e);
       di += Math.sign(delta) * zscale
       let dj = Math.trunc(di)
