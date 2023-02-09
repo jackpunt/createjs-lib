@@ -105,9 +105,11 @@ export class ScaleableContainer extends Container {
    * - scale0: scale a 0: [1]
    * - scaleMax: scale at max: [1000]
    * - steps: highest index: [32]
-   * - initScale: initial scale: [zero]
+   * - initScale: initial scale: [scale0] --> determines initIndex = findIndex(initScale)
    * - unscaleMax: max scale of unscaled zoomed out [1/scaleAry[2]]
    * - unscaleMin: min scale of unscaled zoomed in [1/scaleAry[steps-2]]
+   * - zscale: zoom speed scaling
+   * 
    * @return initIndex [findIndex(initScale)]
    */
   public scaleInit(params: ScaleParams = {}): number {
@@ -121,13 +123,14 @@ export class ScaleableContainer extends Container {
     this.scaleContainer(0) // reset using this.initIndex
     return this.initIndex;
   }
+  /** divide interval from scale0 to scaleMax into nSteps (nSteps+1 values) */
   setupScaleAry(scale0: number, scaleMax: number, nSteps: number) {
     this.scaleAry = new Array();
     this.scaleMaxNdx = nSteps
-    let base = this.scaleBase = 1 + Math.log(scaleMax / scale0) / (nSteps - 3)
+    let base = this.scaleBase = 1 + Math.log(scaleMax / scale0) / (nSteps - 2)
     for (let i: number = 0; i <= nSteps; i++) {
       let scale = scale0 * Math.pow(base, i), rs = Math.round(scale)
-      if (Math.abs(scale - rs) < .08 * scale) scale = rs; // use integral scale when close
+      if (scale > 1.8 && Math.abs(scale - rs) < .08 * scale) scale = rs; // use integral scale when close
       this.scaleAry[i] = scale
     }
   }
@@ -137,9 +140,8 @@ export class ScaleableContainer extends Container {
    * @return index that gets closest so given scale
    */
   findIndex(scale: number) {
-    let idx = (ndx: number) => { return this.scaleAry[Math.min(Math.max(0, ndx), this.scaleMaxNdx)]}
-    let r = Math.log(scale/this.scale0) / this.scaleBase 
-    return this.scaleAry[idx(Math.round(r))]
+    let r = Math.round(Math.log(scale/this.scale0) / Math.log(this.scaleBase ))
+    return Math.max(0, Math.min(r, this.scaleMaxNdx));
   }
 
   /** lowest scale for unscaled items */
