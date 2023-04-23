@@ -1,4 +1,4 @@
-import { Container, Event, Shape, Text, EventDispatcher } from '@thegraid/easeljs-module';
+import { Container, Event, Shape, Text, EventDispatcher, DisplayObject } from '@thegraid/easeljs-module';
 import { XY, S, C, F } from './index.js';
 
 /** send a simple value of type to target. */
@@ -19,10 +19,10 @@ export class ValueCounter extends Container {
 
   color: string;
   text: Text;
-  shape: Shape;
+  box: DisplayObject;
   value: number | string;
   /** width of curently displayed ellipse */
-  wide: number = 0; // and cache indicator
+  wide: number = 0; // set -1 to provoke newBox
 
   /** height of curently displayed ellipse */
   high: number;
@@ -42,10 +42,11 @@ export class ValueCounter extends Container {
     this.setValue(initValue, color, fontSize, fontName);
   }
 
-  /** repaint shape and text with new color/size/font.
+  /** 
+   * repaint shape and text with new color/size/font.
    * Invoked by supplying extra args to setValue().
    */
-  private setFont(newColor: string, fontSize: number, fontName: string) {
+  protected setFont(newColor: string, fontSize: number, fontName: string) {
     if (newColor)
       this.color = newColor;
     if (fontSize)
@@ -53,7 +54,7 @@ export class ValueCounter extends Container {
     if (fontName)
       this.fontName = fontName;
     this.fontSpec = F.fontSpec(this.fontSize, this.fontName);
-    this.wide = -1; // provoke newShape()
+    this.wide = -1; // provoke newBox()
   }
 
   /**
@@ -63,9 +64,7 @@ export class ValueCounter extends Container {
    * @param fontSize
    */
   setLabel(value: string | Text, offset: XY = { x: 0, y: this.high / 2 }, fontSize = 8) {
-    let label: Text = (typeof value === "string")
-      ? new Text("" + value, F.fontSpec(fontSize, this.fontName))
-      : value;
+    let label = (value instanceof Text) ? value : new Text(`${value}`, F.fontSpec(fontSize, this.fontName))
     this.label = label;
     let width = label.getMeasuredWidth();
     //let height = label.getMeasuredLineHeight()
@@ -75,58 +74,51 @@ export class ValueCounter extends Container {
   }
 
   /** return width, height and text  */
-  static ovalSize(value: number | string | Text,
-    fontSpec: string = F.fontSpec(16),
-    textColor: string = C.black): { width: number; height: number; text: Text; } {
-    let text: Text = (value as Text);
-    if (!(text instanceof Text)) {
-      text = new Text("" + (value as number | string), fontSpec, textColor);
-    }
-    let width = text.getMeasuredWidth();
-    let height = text.getMeasuredLineHeight();
-    let high = height * 1.2;
-    let wide = Math.max(width * 1.3, high);
-    let rv = { width: wide, height: high, text: text };
-    text.x = 0 - (width / 2);
-    text.y = 1 - (height / 2); // -1 fudge factor, roundoff?
-    return rv;
+  protected boxSize(text: Text): { width: number; height: number } {
+    let texth = text.getMeasuredLineHeight();
+    let textw = text.getMeasuredWidth();
+    let height = texth * 1.2;
+    let width = Math.max(textw * 1.3, height);
+    text.x = 0 - (textw / 2);
+    text.y = 1 - (texth / 2); // -1 fudge factor, roundoff?
+    return { width, height };
   }
-  /** drawEllipse: wide X high, centered at 0,0  */
-  static makeOval(color: string, high: number, wide: number): Shape {
+  /** 
+   * makeBox: wide X high, centered at 0,0 (An Ellipse surrounding the value Text)
+   * 
+   * Override to draw alternative Shape/DisplayObject.
+   */
+  protected makeBox(color: string, high: number, wide: number): DisplayObject {
     let shape: Shape = new Shape();
-    shape.graphics.beginFill(color).drawEllipse(0, 0, wide, high);
-    // shape.regX = wide / 2; //at center of ellipse (old/bad idea; better to set shape.x = wide/2)
-    // shape.regY = high / 2;
-    // shape.x = shape.y = 0;
+    shape.graphics.f(color).de(0, 0, wide, high);
     shape.x = -wide/2; shape.y = -high/2
     return shape;
   }
   /** remove and nullify text, remove and replace Oval & label. */
-  private newShape(wide: number, high: number) {
+  protected newBox(wide: number, high: number) {
     // make new Shape and Size:
     this.removeAllChildren();
     this.text = undefined;
     this.high = high;
     this.wide = wide;
-    this.shape = ValueCounter.makeOval(this.color, high, wide);
-    this.addChild(this.shape);
+    this.box = this.makeBox(this.color, high, wide);
+    this.addChild(this.box);
     if (!!this.label)
       this.addChild(this.label);
   }
   getValue(): number | string {
     return this.value;
   }
-  /** display new value, possilby new color, fontsize, fontName */
+  /** display new value, possibly new color, fontSize, fontName */
   setValue(value: number | string, color?: string, fontSize?: number, fontName?: string, textColor = C.black) {
     this.value = value;
-    if (color || fontSize || fontName)
-      this.setFont(color, fontSize, fontName);
-    let { width, height, text } = ValueCounter.ovalSize(value, this.fontSpec, textColor);
+    if (color || fontSize || fontName) this.setFont(color, fontSize, fontName);
+    let text = new Text(`${value}`, this.fontSpec, textColor);
+    let { width, height } = this.boxSize(text);
     if ((width > this.wide) || (width < this.wide * .9)) {
-      this.newShape(width, height);
+      this.newBox(width, height);
     }
-    if (this.text)
-      this.removeChild(this.text); // remove previous text entity
+    if (this.text) this.removeChild(this.text); // remove previous text entity
     this.text = text;
     this.addChild(text); // at top of list
   }
