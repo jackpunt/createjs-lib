@@ -194,28 +194,24 @@ export class Dragger {
   // a click, or end-of-drag or synthetic, from stopDrag()
   pressup(e: MouseEvent, data: DragData) {
     let { dropfunc, dragCtx } = data
-    let obj: DisplayObject | Container = e.currentTarget // the SC in phase-3
-    if (!e['isSynthetic']) {    // dragStop: mousebutton still down
-      data.dragCtx = undefined; // drag is done... mousebutton is up
-      data.dragStopped = false; // indicates that it *was* stopped vs undefined (never stopped)
-    }
+    let obj: DisplayObject = e.currentTarget // the SC in phase-3
+    data.dragCtx = undefined; // drag is done... mousebutton is up
+    data.dragStopped = false; // indicates that it *was* stopped vs undefined (never stopped)
     let stage = obj.stage
-    //console.log(stime(this, `.pressup:`), {obj, dragCtx})
     if (data.clickToDrag && data.stagemousemove) {
-      //console.log(stime(this, `.pressup: stage.removeEventListener`), data.stagemousemove)
       stage.removeEventListener(S_stagemousemove, data.stagemousemove)
+      data.stagemousemove = undefined;
     }
     if (!dragCtx) {
-      // pressup without a dragCtx: a click; if clickToDrag convert mousemove to pressmove:
-      //console.log(stime(this, ".pressup: (no dragCtx) click event="), { e, clickToDrag })
+      // pressup without a dragCtx: a click; if clickToDrag convert stagemousemove to pressmove:
       if (!!data.clickToDrag) {
         // mouse is NOT down; to get 'drag' events we listen for stagemousemove:
         let stageDrag = (e: MouseEvent, data?: DragData) => {
           e.currentTarget = obj
           this.pressmove(e, data)
         }
-        this.pressmove(e, data)  // data.dragCtx = startDrag()
         data.stagemousemove = stage.on(S_stagemousemove, stageDrag, this, false, data)
+        this.pressmove(e, data)  // data.dragCtx = startDrag()
       }
       return     // a click, not a Drag+Drop
     }
@@ -258,16 +254,16 @@ export class Dragger {
    * @param dropfunc? f(dispObj|Container, dragCtx)
    * @param isScaleCont? set true if Container is the ScaleableContainer (a parent of this Dragger)
    */
-  makeDragable(dispObj: DisplayObject | Container,
+  makeDragable(dispObj: DisplayObject,
     scope?: Object,
-    dragfunc?: ((c: DisplayObject | Container, ctx?: DragInfo) => void),
-    dropfunc?: ((c: DisplayObject | Container, ctx?: DragInfo) => void),
+    dragfunc?: ((c: DisplayObject, ctx?: DragInfo) => void),
+    dropfunc?: ((c: DisplayObject, ctx?: DragInfo) => void),
     isScaleCont: boolean = (dispObj === this.dragCont.parent)): this {
 
     // on ( type  listener  [scope]  [once=false]  [data]  [useCapture=false] )
     // https://www.createjs.com/docs/easeljs/classes/DisplayObject.html#method_on
-    // we *could* pass dragCtx or cont as [data] ??
-    // but closure binding works just fine.
+    // we pass DragData (containing data.dragCtx) 
+    // Q: should we include { target: dispObj } in DragData? (vs using event.currentTarget)
 
     this.stopDragable(dispObj) // remove prior Drag listeners
     let data: DragData = { scope, dragfunc, dropfunc, isScaleCont }
@@ -284,8 +280,8 @@ export class Dragger {
     let dragData = this.getDragData(target)
     dragData.clickToDrag = ctd
     let stage = target.stage, stageX = stage.mouseX, stageY = stage.mouseY
+    // MouseEvent with no .nativeEvent:
     let event = new MouseEvent(S.pressup, false, true, stageX, stageY, undefined, -1, true, stageX, stageY)
-    event['isSynthetic'] = true;
     target.dispatchEvent(event, target) // set dragData.dragCtx = startDrag()
     return dragData
   }
@@ -298,16 +294,25 @@ export class Dragger {
     target.y -= dxy.y
     target.stage.update()            // move and show new position
   }
-  // Especially for clickToDrag, there is no "pressup" to indicate dragStop.
-  // When doing 'actual' drag, we want to suppress later/continuing pressmove events
-  // UNTIL there is an actual pressup event; so we set dragStopped=true to inform pressup handler.
-  /** Release drag target from mouse, invoke pressup->dropFunc [drop on dropTarget] */
+  // Set .dragStopped to ignore pressmove events UNTIL there is a pressup event.
+  // When clickToDrag is dragging, there will be no "pressup" to indicate end_of_drag, so emit here.
+  /** 
+   * Release drag target from mouse, ignore pressmove events on target until pressup. 
+   * If clickToDrag(target) is dragging, invoke pressup->dropFunc; else wait for actual pressup.
+   */
   stopDrag() {
     let target: DisplayObject = this.dragCont.getChildAt(0); // ASSERT dragCont has *one* child.
     if (target) {
       let dragData = this.getDragData(target)
-      dragData.dragStopped = true;  // until *real* pressup from mouse.
-      this.dispatchPressup(target); // dragData.data = dragStart() && dragData.dragStopped = false
+      if (!dragData) {
+        console.warn(stime(this, `.stopDrag: no target.dragData; target =`), target);
+        return;
+      }
+      dragData.dragStopped = true; // true: pressmove->return; undefined: pressmove->dragFunc
+      let ctd_is_dragging = !!dragData.clickToDrag && !!dragData.stagemousemove;
+      if (ctd_is_dragging) {
+        this.dispatchPressup(target); // dragData.dragStopped = undefined
+      }
     }
   }
 
