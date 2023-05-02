@@ -57,6 +57,7 @@ type DragData = {
   stagemousemove?: OnHandler, 
   clickToDrag?: boolean,
   isScaleCont?: boolean, 
+  dragStopped?: boolean, // true if stopDragging(target) was called, else undefined
 }
 
 /**
@@ -122,8 +123,8 @@ export class Dragger {
     return data.dragCtx = {
       nameD: obj.name, lastCont: par, srcCont: par, first: true,
       event, stageX0: event.stageX, stageY0: event.stageY, objx: obj.x, objy: obj.y, scalmat, dxy,
-      targetC, targetD, rotation
-    } as DragInfo
+      targetC, targetD, rotation,
+    };
     //console.log(stime(this, ".pressmove: dragCtx.lastCont.name="), dragCtx.lastCont.name, dragCtx)
     //console.log(stime(this, ".pressmove: dragCtx="), dragCtx, "\n   event=", e, dragfunc)
   }
@@ -135,11 +136,14 @@ export class Dragger {
     let obj: DisplayObject | Container = event.currentTarget, stage = obj.stage;
     if (!dragCtx) {
       Dragole.reset(-1) // *first* (next) log will trigger
-      dragCtx = this.startDrag(event, obj, data)
+      dragCtx = this.startDrag(event, obj, data) // Also: data.dragCtx = dragCtx;
     } else {
       dragCtx.first = false
       dragCtx.event = event
     }
+    event.stopPropagation()
+    if (data.dragStopped) return; // waiting for *real* pressup event.
+
     /** move the whole scaleContainer, adjusting when it gets scaled. */
     let moveScaleCont = (sc: Container, event: MouseEvent) => {
       // dragCont is child of obj == ScaleableConter:
@@ -158,7 +162,6 @@ export class Dragger {
       //console.log(stime(this, ".moveCont:"), {orig, e, pt, sx: obj.scaleX, obj})
     }
 
-    event.stopPropagation()
     // move obj to follow mouse:
     if (obj == dragCtx.targetC) {
       moveScaleCont(obj as Container, event)   // typically: the whole ScaleableContainer
@@ -188,10 +191,14 @@ export class Dragger {
     stage?.update();
   }
 
+  // a click, or end-of-drag or synthetic, from stopDrag()
   pressup(e: MouseEvent, data: DragData) {
     let { dropfunc, dragCtx } = data
     let obj: DisplayObject | Container = e.currentTarget // the SC in phase-3
-    data.dragCtx = undefined; // drag is done...
+    if (!e['isSynthetic']) {    // dragStop: mousebutton still down
+      data.dragCtx = undefined; // drag is done... mousebutton is up
+      data.dragStopped = false; // indicates that it *was* stopped vs undefined (never stopped)
+    }
     let stage = obj.stage
     //console.log(stime(this, `.pressup:`), {obj, dragCtx})
     if (data.clickToDrag && data.stagemousemove) {
@@ -199,14 +206,16 @@ export class Dragger {
       stage.removeEventListener(S_stagemousemove, data.stagemousemove)
     }
     if (!dragCtx) {
+      // pressup without a dragCtx: a click; if clickToDrag convert mousemove to pressmove:
       //console.log(stime(this, ".pressup: (no dragCtx) click event="), { e, clickToDrag })
       if (!!data.clickToDrag) {
-        let stageDrag = (e: MouseEvent, data: DragData) => {
+        // mouse is NOT down; to get 'drag' events we listen for stagemousemove:
+        let stageDrag = (e: MouseEvent, data?: DragData) => {
           e.currentTarget = obj
           this.pressmove(e, data)
         }
         this.pressmove(e, data)  // data.dragCtx = startDrag()
-        data.stagemousemove = stage.on(S_stagemousemove, stageDrag as (e)=>void, this, false, data)
+        data.stagemousemove = stage.on(S_stagemousemove, stageDrag, this, false, data)
       }
       return     // a click, not a Drag+Drop
     }
@@ -276,6 +285,7 @@ export class Dragger {
     dragData.clickToDrag = ctd
     let stage = target.stage, stageX = stage.mouseX, stageY = stage.mouseY
     let event = new MouseEvent(S.pressup, false, true, stageX, stageY, undefined, -1, true, stageX, stageY)
+    event['isSynthetic'] = true;
     target.dispatchEvent(event, target) // set dragData.dragCtx = startDrag()
     return dragData
   }
@@ -288,10 +298,17 @@ export class Dragger {
     target.y -= dxy.y
     target.stage.update()            // move and show new position
   }
+  // Especially for clickToDrag, there is no "pressup" to indicate dragStop.
+  // When doing 'actual' drag, we want to suppress later/continuing pressmove events
+  // UNTIL there is an actual pressup event; so we set dragStopped=true to inform pressup handler.
   /** Release drag target from mouse, invoke pressup->dropFunc [drop on dropTarget] */
   stopDrag() {
-    let target: DisplayObject = this.dragCont.getChildAt(0)
-    target && this.dispatchPressup(target)
+    let target: DisplayObject = this.dragCont.getChildAt(0); // ASSERT dragCont has *one* child.
+    if (target) {
+      let dragData = this.getDragData(target)
+      dragData.dragStopped = true;  // until *real* pressup from mouse.
+      this.dispatchPressup(target); // dragData.data = dragStart() && dragData.dragStopped = false
+    }
   }
 
   /** prevent DisplayObject from being dragable */
