@@ -106,21 +106,30 @@ export class ValueCounter extends Container {
     if (!!this.label)
       this.addChild(this.label);
   }
+
+  /** set Text.text = value, maybe adjust box to fit. */
+  protected setBoxWithValue(value: string | number) {
+    let text = this.text;
+    text.text = `${value}`
+    let { width, height } = this.boxSize(text);
+    if ((width > this.wide) || (width < this.wide * .9)) {
+      this.newBox(width, height);
+    }
+    this.addChild(text); // at top of list
+  }
+
   getValue(): number | string {
     return this.value;
   }
   /** display new value, possibly new color, fontSize, fontName */
   setValue(value: number | string, color?: string, fontSize?: number, fontName?: string, textColor = C.black) {
     this.value = value;
-    if (color || fontSize || fontName) this.setFont(color, fontSize, fontName);
-    let text = new Text(`${value}`, this.fontSpec, textColor);
-    let { width, height } = this.boxSize(text);
-    if ((width > this.wide) || (width < this.wide * .9)) {
-      this.newBox(width, height);
+    if (!this.text || color || fontSize || fontName) {
+      this.setFont(color, fontSize, fontName);
+      this.removeChild(this.text); // remove previous text entity
+      this.text = new Text(undefined, this.fontSpec, textColor);
     }
-    if (this.text) this.removeChild(this.text); // remove previous text entity
-    this.text = text;
-    this.addChild(text); // at top of list
+    this.setBoxWithValue(value);
   }
 
   updateValue(value: number | string) {
