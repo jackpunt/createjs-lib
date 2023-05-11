@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "note:": "remember to rm -rf .angular/cache when [re-]installing a tgz",
-    "pack-tgz": "npm pack",
+    "tgz": "rm -rf *.tgz; npm pack",
     "pub": "npm version ${1:-patch} && npm run build && npm publish --access public",
     "testEdit": "test/testEditBox.sh",
     "test": "jest --runInBand --force-exit --detectOpenHandles --verbose",
