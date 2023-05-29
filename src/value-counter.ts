@@ -13,12 +13,12 @@ export class ValueEvent extends Event {
     return target.dispatchEvent(new ValueEvent(type, value));
   }
 }
-/** Text in a colored circle, possibly with a lable */
+/** Text in a colored circle, possibly with a label */
 
 export class ValueCounter extends Container {
 
-  color: string;
-  text: Text;
+  readonly text = new Text(undefined);  // a vacuous Text Object.
+  color: string;        // backgroud color
   box: DisplayObject;
   value: number | string;
   /** width of curently displayed ellipse */
@@ -33,109 +33,122 @@ export class ValueCounter extends Container {
   label: Text;
   labelFontSize: number = 16;
 
-
-  constructor(name: string, initValue: number | string = 0, color: string = C.coinGold, fontSize: number = 16, fontName: string = undefined) {
+  constructor(name: string, initValue: number | string = 0, color = C.coinGold, fontSize = 16, fontName?: string, textColor?: string) {
     super();
     this.name = name;
+    this.color = color;
     this.mouseEnabled = false;
     this.mouseChildren = false;
-    this.setValue(initValue, color, fontSize, fontName);
-  }
-
-  /** 
-   * repaint shape and text with new color/size/font.
-   * Invoked by supplying extra args to setValue().
-   */
-  protected setFont(newColor: string, fontSize: number, fontName: string) {
-    if (newColor)
-      this.color = newColor;
-    if (fontSize)
-      this.fontSize = fontSize;
-    if (fontName)
-      this.fontName = fontName;
-    this.fontSpec = F.fontSpec(this.fontSize, this.fontName);
-    this.wide = -1; // provoke newBox()
+    this.initValueText(initValue, fontSize, fontName, textColor);
+    this.setValue(initValue);
   }
 
   /**
-   *
-   * @param value string to display near value
-   * @param offset from center of text to origin of oval
-   * @param fontSize
+   * repaint shape and text with new color/size/font.
+   * Invoked by supplying extra args to setValue().
    */
-  setLabel(value: string | Text, offset: XY = { x: 0, y: this.high / 2 }, fontSize = 8) {
-    let label = (value instanceof Text) ? value : new Text(`${value}`, F.fontSpec(fontSize, this.fontName))
-    this.label = label;
-    let width = label.getMeasuredWidth();
-    //let height = label.getMeasuredLineHeight()
-    label.x = offset.x - (width / 2);
-    label.y = offset.y + 1;
-    this.addChild(label);
+  protected setFont(fontSize = this.fontSize, fontName = this.fontName, textColor = this.text.color ?? C.BLACK) {
+    this.fontSize = fontSize;
+    this.fontName = fontName;
+    this.fontSpec = F.fontSpec(this.fontSize, this.fontName);
+    this.text.font = this.fontSpec;
+    this.text.color = textColor;
+    this.wide = -1; // provoke newBox()
   }
 
-  /** return width, height and text  */
-  protected boxSize(text: Text): { width: number; height: number } {
-    let texth = text.getMeasuredLineHeight();
-    let textw = text.getMeasuredWidth();
-    let height = texth * 1.2;
-    let width = Math.max(textw * 1.3, height);
-    text.x = 0 - (textw / 2);
-    text.y = 1 - (texth / 2); // -1 fudge factor, roundoff?
-    return { width, height };
+  protected initValueText(initValue: number | string, fontSize: number, fontName?: string, textColor = C.BLACK) {
+    this.text.text = `${initValue}`;
+    this.setFont(fontSize, fontName, textColor); // save fontSpec
+    this.text.textAlign = 'center';
+    this.text.textBaseline = 'middle';
   }
-  /** 
-   * makeBox: wide X high, centered at 0,0 (An Ellipse surrounding the value Text)
-   * 
-   * Override to draw alternative Shape/DisplayObject.
-   */
+
+  /** set Label (at bottom of box) */
+  setLabel(label: string | Text, offset: XY = { x: 0, y: this.high }, fontSize = 8) {
+    this.removeChild(this.label);
+    this.labelFontSize = fontSize;
+    let labelText = label as Text;
+    if (!(label instanceof Text)) {
+      labelText = new Text(`${label}`, F.fontSpec(fontSize, this.fontName));
+      labelText.textAlign = 'center';
+      labelText.textBaseline = 'middle';
+      labelText.x = offset.x;
+      labelText.y = offset.y;
+    }
+    this.label = this.addChild(labelText);
+  }
+
   protected makeBox(color: string, high: number, wide: number): DisplayObject {
-    let shape: Shape = new Shape();
-    shape.graphics.f(color).de(0, 0, wide, high);
-    shape.x = -wide/2; shape.y = -high/2
+    const shape: Shape = new Shape();
+    shape.graphics.f(color).de(-wide/2,  -high/2, wide, high); // drawEllipse()
     return shape;
   }
-  /** remove and nullify text, remove and replace Oval & label. */
+
   protected newBox(wide: number, high: number) {
     // make new Shape and Size:
     this.removeAllChildren();
-    this.text = undefined;
+    // this.text = undefined;
     this.high = high;
     this.wide = wide;
     this.box = this.makeBox(this.color, high, wide);
+    this.boxAlign();
     this.addChild(this.box);
     if (!!this.label)
       this.addChild(this.label);
   }
 
-  /** set Text.text = value, maybe adjust box to fit. */
-  protected setBoxWithValue(value: string | number) {
-    let text = this.text;
+  /** return required size { width, height } of Box (ellispe or rect or whatever) */
+  protected boxSize(text: Text): { width: number; height: number } {
+    let texth = text.getMeasuredLineHeight();
+    let textw = text.getMeasuredWidth();
+    let height = texth * 1.2;
+    let width = Math.max(textw * 1.3, height); // Ellipse
+    return { width, height };
+  }
+
+  protected boxAlignment: 'center' | 'left' | 'right' = 'center';
+  boxAlign(align = this.boxAlignment) {
+    this.boxAlignment = align;
+    const { width } = this.boxSize(this.text)
+    const x = (align === 'right') ? -width/2 : (align === 'left') ? width/2 : 0; // default 'center'
+    this.box.x = x;
+    this.text.x = x;
+    this.text.y = 0;  // textBaseline = 'middle'
+  }
+
+  protected setBoxWithValue(value: string | number): void {
+    const text = this.text;
     text.text = `${value}`
-    let { width, height } = this.boxSize(text);
+    const { width, height } = this.boxSize(text);
     if ((width > this.wide) || (width < this.wide * .9)) {
       this.newBox(width, height);
     }
+    // this.boxAlign();
     this.addChild(text); // at top of list
   }
 
   getValue(): number | string {
     return this.value;
   }
-  /** display new value, possibly new color, fontSize, fontName */
-  setValue(value: number | string, color?: string, fontSize?: number, fontName?: string, textColor = C.black) {
+
+  /** display new value, possibly new color, fontSize, fontName, textColor */
+  setValue(value: number | string, color = this.color, fontSize = this.fontSize, fontName = this.fontName, textColor = this.text?.color ?? C.BLACK) {
     this.value = value;
-    if (!this.text || color || fontSize || fontName) {
-      this.setFont(color, fontSize, fontName);
-      this.removeChild(this.text); // remove previous text entity
-      this.text = new Text(undefined, this.fontSpec, textColor);
+    // TODO: remove workaround for old constructor:
+    if (!this.text) this.initValueText(undefined, fontSize, fontName, textColor);
+    if (color !== this.color) {
+      this.color = color;
+      this.wide = -1; // force rebuild
+    }
+    if (fontSize !== this.fontSize || fontName !== this.fontName || textColor != this.text.color) {
+      this.setFont(fontSize, fontName, textColor);
     }
     this.setBoxWithValue(value);
   }
 
   updateValue(value: number | string) {
     this.setValue(value);
-    //this.parent.setChildIndex(this, this.parent.numChildren -1)
-    this.stage.update();
+    this.stage?.update();
   }
 
   /**
