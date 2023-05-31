@@ -131,7 +131,9 @@ export class Dragger {
 
   pressmove(event: MouseEvent, data: DragData) {
     let { dragfunc, dragCtx } = data
+    // TODO: remove this, client to use stopDrag(), so mouse state is stable.
     if (event.target[S.doNotDrag]) return
+    if (event.nativeEvent?.button !== 0) return;
     // use currentTarget, so non-dragable Shapes pull whole ScaleableContainer
     let obj: DisplayObject | Container = event.currentTarget, stage = obj.stage;
     if (!dragCtx) {
@@ -204,7 +206,7 @@ export class Dragger {
     }
     if (!dragCtx) {
       // pressup without a dragCtx: a click; if clickToDrag convert stagemousemove to pressmove:
-      if (!!data.clickToDrag) {
+      if (!!data.clickToDrag && e.nativeEvent.button === 0) {
         // mouse is NOT down; to get 'drag' events we listen for stagemousemove:
         let stageDrag = (e: MouseEvent, data?: DragData) => {
           e.currentTarget = obj
@@ -316,7 +318,9 @@ export class Dragger {
     }
   }
 
-  /** prevent DisplayObject from being dragable */
+  /** prevent DisplayObject from being dragable 
+   * @deprecated use stopDragable() or stopDrag()
+   */
   notDragable(dispObj: DisplayObject) { dispObj[S.doNotDrag] = true }
   /** remove pressmove and pressup listenerf from dispObj. */
   stopDragable(dispObj: DisplayObject) {
