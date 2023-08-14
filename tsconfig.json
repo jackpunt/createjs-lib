@@ -7,7 +7,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     // "ignoreDeprecations": "5.0", // use "verbatimModuleSyntax" instead of "importNotUsedAsValue"
-    "importsNotUsedAsValues": "error",
+    // "importsNotUsedAsValues": "error",
     // https://stackoverflow.com/questions/58384179/syntaxerror-cannot-use-import-statement-outside-a-module
     "moduleResolution": "node",
     "importHelpers": true, // requires tslib

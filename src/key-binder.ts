@@ -220,6 +220,10 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     return this._bindKey(this.getKeymap(scope), key, bind);
   }
 
+  setKeyC(key: RegExp, func: (...args: any[]) => any, thisArg?: object, scope?: KeyScope) {
+    return this.setKey(key, { func: (argVal, key) => func(), thisArg, }, scope); 
+  }
+
   localSetKeyFromChar(scope: KeyScope, str: string, bind: Binding) {
     return this._bindKey(this.getKeymap(scope), this.getKeyCodeFromChar(str), bind);
   }
@@ -245,9 +249,9 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
   // but when new chord comes, attempt to cancel the Promise, and replace
   /** dispatch keyup and keydown events [keypress dispatches to keydown, the default] 
    * KeyboardEvent is HTML Event, so current/target path is: window, document, html, body
-   * Useless for 'local' bindings; we need a 'focus' on DisplayObject, and target to that.
-   * Text/EditBox can listen for 'click' and set focus. (currentTarget)
-   * Text/EditBox can listen for 'Enter' and release focus (blur) [also: onCollapse of menu]
+   * - Useless for 'local' bindings; we need a 'focus' on DisplayObject, and target to that.
+   * - Text/EditBox can listen for 'click' and set focus. (currentTarget)
+   * - Text/EditBox can listen for 'Enter' and release focus (blur) [also: onCollapse of menu]
    */
   dispatchKey(e: KeyboardEvent) {
     return this.dispatchKeyCode(this.getKeyCodeFromEvent(e), e.key, e) // encode all the C-M-A-Shift bits:

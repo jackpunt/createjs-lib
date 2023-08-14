@@ -148,13 +148,13 @@ export class ScaleableContainer extends Container {
   get scale0() { return this.scaleAry[0] }
   /** the current index into the scale array */
   get scaleIndex() { return this.scaleNdx }
-  /** the current scale factor */
+  /** the current scale factor from scaleAry (actual scaleX/scaleY may be different) */
   get scaleXY() { return this.scaleAry[this.scaleNdx] }
 
   /** set scaleIndex & return associated scale factor */
   getScale(ndx: number = this.scaleNdx): number {
     ndx = Math.min(this.scaleMaxNdx, Math.max(0, ndx));
-    return this.scaleAry[this.scaleNdx = ndx]; // Hmm... this.scaleX ???
+    return this.scaleAry[this.scaleNdx = ndx];  // scale associated with given ndx
   }
   /** add di to find new index into scale array 
    * @param di typically: -1, +1 (0 to return currentScale)
@@ -162,16 +162,33 @@ export class ScaleableContainer extends Container {
   incScale(di: number): number {
     return this.getScale(this.scaleNdx + di);   // new scale
   }
+
+  /**
+   * Set scale exactly; set scale index approximately and return it.
+   * @param ns new scale
+   * @param xy scale around this point (so 'p' does not move on display) = {0,0}
+   * @param sxy move to offset? in new coords?
+   * @returns the nearby scaleNdx
+   */
+  setScale(ns = 1.0, xy: XY = { x: 0, y: 0 }, sxy: XY = { x: 0, y: 0 }): number {
+    this.getScale(this.findIndex(ns)); // close appx, no side effects.
+    this.scaleInternal(this.scaleX, ns, xy);
+    return ns;
+  }
+
   /** zoom to the scale[si] 
+   * @param si new scaleNdx
+   * @param xy fixed point
    * @return the new scale
    */
   setScaleIndex(si: number, xy?: XY): number {
-    let os = this.scaleXY
+    let os = this.scaleX
     let ns = this.getScale(si);
     return this.scaleInternal(os, ns, xy);
   }
   /**
    * rescale, set origin, position viewport
+   * @deprecated does not use scaleInternal() --> invScale()
    * @param si new scale index; [0 -> scale0 aka initScale]
    * @param xy align xy at parent(0,0) [0,0]
    * @param sxy offset xy to screen position sxy [0,0]
@@ -196,8 +213,8 @@ export class ScaleableContainer extends Container {
    * @return the new scale
    */
   scaleContainer(di: number, xy?: XY): number {
-    let os: number = this.scaleXY;   // current -> old / original scale
-    let ns: number = this.incScale(di);
+    let os = this.scaleX;            // current scale, for offsets
+    let ns = this.incScale(di);
     if (di == 0) { os = 0; ns = this.getScale(this.initIndex) }
     return this.scaleInternal(os, ns, xy);
   }
