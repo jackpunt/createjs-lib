@@ -1,6 +1,6 @@
 import { Container, Text } from "@thegraid/easeljs-module";
-import type { ChoiceStyle, ChoiceType, Chooser, ChooserConst } from "./chooser";
-import { DropdownButton, DropdownChoice, DropdownItem, DropdownStyle } from "./dropdown";
+import type { ChoiceStyle, ChoiceType, Chooser, ChooserConst } from "./index.js";
+import { DropdownButton, DropdownChoice, DropdownItem, DropdownStyle } from "./index.js";
 import { C, F, maxTextWidth, stime, TextStyle } from './index.js' //'@thegraid/createjs-lib' //
 
 export type ParamType = ChoiceType

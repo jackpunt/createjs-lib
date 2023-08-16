@@ -1,5 +1,5 @@
 import { Container, MouseEvent, Rectangle, Shape, Text } from "@thegraid/easeljs-module";
-import { ChoiceItem, ChoiceStyle, Chooser } from "./chooser.js";
+import { ChoiceItem, ChoiceStyle, Chooser } from "./index.js";
 import { C, F, Obj, S, XY } from './index.js'; //'@thegraid/createjs-lib'; //
 
 // https://jsfiddle.net/s1o1wswr/13/

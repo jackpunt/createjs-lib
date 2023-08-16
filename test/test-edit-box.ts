@@ -3,7 +3,7 @@ import { EditBox } from './src/index.js'
 
 let kb = new KeyBinder()
 //kb.details = true
-let tb = new EditBox({x: 0, y: 0, w: 600, h: 400}, 'lightgrey')
+let tb = new EditBox({ x: 0, y: 0, w: 600, h: 400 }, { textColor: 'lightgrey' })
 tb.setFocus()
 kb.dispatchChar("a");
 kb.dispatchChar("b");

@@ -1,4 +1,4 @@
-import { Binding, KeyBinder } from './src/index.js'
+import { AT, Binding, KeyBinder } from './src/index.js'
 
 const kb0 = new KeyBinder()
 const kb = KeyBinder.keyBinder; // assert( kb === kb0)
@@ -12,18 +12,18 @@ let kcodeRecv: number = undefined;
 let codekRecv: string = undefined;
 let ekeyRecv: string = undefined;
 
-function onKeyEvent(argVal?: any, evt?: KeyboardEvent | string) {
-  let e = evt as KeyboardEvent
-  let kcode = KeyBinder.keyBinder.getKeyCodeFromEvent(e as KeyboardEvent)
+function onKeyEvent(argVal?: any, keyStr?: string) {
+  //let e = evt as KeyboardEvent
+  //let kcode = KeyBinder.keyBinder.getKeyCodeFromEvent(e as KeyboardEvent)
+  let kcode = KeyBinder.keyBinder.getKeyCodeFromChar(keyStr)
   let codek = KeyBinder.keyBinder.keyCodeToString(kcode)
   kcodeRecv = kcode
   codekRecv = codek
-  ekeyRecv = e.key
+  ekeyRecv = keyStr
   // console.log('recv', { Bind: codek, Key: ekeyRecv, Kcode: kcodeRecv });
   // KeyBinder.keyBinder.showKeyEvent(codek, e);
   return false;
 }
-const keyback: Binding = { func: onKeyEvent }
 
 const ev = KeyBinder.keyEvent // key, code, keyCode, shiftKey, ctrlKey, metaKey, altKey, type
 const kbEvents: KeyboardEvent[] = [
@@ -43,25 +43,32 @@ const kbEvents: KeyboardEvent[] = [
   ev(' ', ' ', 32, false, false, false, false, false),    // ' ' literal Space
   ev(' ', ' ', 32,  true, false, false, false, false),    // S-Space
   ev(' ', ' ', 32,  false, true, false, false, false),    // C-Space
-  ev('Space', 'Space', 32, false, false, false, false, false), // Space
-  ev('SPACE', 'SPACE', 32,  true, false, false, false, false), // S-Space
+  ev('Space', 'Space', 32, false, false, false, false, false),  // Space
+  ev('SPACE', 'SPACE', 32,  true, false, false, false, false),  // S-Space
+  ev('Enter', 'Enter', 13, false, false, false, false, false),  // Enter
+  ev('Enter', 'Enter', 13,  true, false, false, false, false),  // S-Enter
   ev('Alt', 'AltLeft', 18, false, false, false,  true, false),  // Alt down
   ev('Alt', 'AltLeft', 18,  true, false, false, false, false),  // S-Alt
+  ev('Alt', 'AltLeft', 18,  true, false, false, false, false),  // S-Alt
 ]
+
+const recv = AT.ansiText(['green'], 'recv');
+const FAIL = AT.ansiText(['$red'], 'FAIL');
 //kbEvents.forEach(evt => kb.dispatchEvent(evt))
 kbEvents.forEach(evt => { 
-  let kcode = kb.getKeyCodeFromEvent(evt)
-  // let { shiftKey: shift, ctrlKey: ctrl, metaKey: meta, altKey: alt, type } = evt
-  // let bits = {shift, ctrl, meta, alt, keyup: (type=="keyup")}
-  // let keycode = kb.getKeyCode(kcode, bits)
-  let codeStr = kb.keyCodeToString(kcode)
-  let kcodeB = setKey(codeStr, keyback) // uses getKeyCodeFromChar('A-Alt')
+  const keyback: Binding = { func: onKeyEvent }
+  const kcode = kb0.getKeyCodeFromEvent(evt)
+  const codeStr = kb0.keyCodeToString(kcode)
+  const bind = keyback; 
+  const kb = new KeyBinder(true);
+  const kcodeB = kb.setKey(codeStr, bind)
+  console.log('bind', { codeStr, kcode, func: bind.func })
+  // const kcodeB = setKey(codeStr, keyback) // uses getKeyCodeFromChar('A-Alt')
+  // const kcodeC = kb.setKey(codeStr, onKeyEvent, this) // uses getKeyCodeFromChar('A-Alt')
   kcodeRecv = undefined
   codekRecv = '*****'
-  let rv = kb.dispatchKey(evt); 
-  if (kcodeRecv) 
-    console.log('recv', { codeRec: codekRecv, Kcode: kcodeRecv, Key: ekeyRecv });
-  else 
-    console.log('FAIL', { codeRec: codekRecv, Kcode: kcodeRecv, Key: ekeyRecv });
+  const rv = kb.dispatchKey(evt); 
+  const test = (!kcodeRecv || kcodeRecv !== kcode) ? FAIL : recv;
+  console.log(test, { codeRec: codekRecv, Kcode: kcodeRecv, Key: ekeyRecv });
   console.log('done', { '^^^^^': codeStr, kcode, rv, kcodeB })
 })

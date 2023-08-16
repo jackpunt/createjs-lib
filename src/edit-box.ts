@@ -1,8 +1,8 @@
 import { Container, Graphics, Shape, Text } from "@thegraid/easeljs-module"
 import { C, F, S, textWidth, XYWH } from "./index.js"
-import { KeyBinder, Binding, Keymap, BindFunc  } from "./key-binder.js";
+import { KeyBinder, Binding, Keymap, BindFunc  } from "./index.js";
 
-export type TextStyle = { bgColor: string, fontSize?: number, fontName?: string, textColor?: string }
+export type TextStyle = { bgColor?: string, fontSize?: number, fontName?: string, textColor?: string }
 /** a Container with a [rectangle] Shape and a Text.
  * keystrokes to the Shape are inserted into the Text.
  * 
