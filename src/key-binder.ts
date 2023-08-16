@@ -220,19 +220,19 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
   globalSetKeyFromChar(str: KeyStr, bind: Binding): KeyCode {
     return this.globalSetKey(this.getKeyCodeFromChar(str), bind);
   }
-  setKey(key: RegExp, bind: Binding, scope?: KeyScope): RegExp
-  setKey(key: number | string, bind: Binding, scope?: KeyScope): KeyCode
-  setKey(key: number | string | RegExp, bind: Binding, scope?: KeyScope): KeyCode | RegExp {
-    if (key instanceof RegExp) return this.localBindToRegex(scope, key, bind)
-    if (typeof key === 'string') key = this.getKeyCodeFromChar(key)
-    return this._bindKey(this.getKeymap(scope), key, bind);
+
+  setKey(key: RegExp,          bind: Binding | ((...args: any[]) => any), thisArg?: object, scope?: KeyScope): RegExp
+  setKey(key: number | string, bind: Binding, scope?: KeyScope): number
+  setKey(key: number | string, bind: ((...args: any[]) => any), thisArg?: object, scope?: KeyScope): number
+  setKey(key: number | string | RegExp, bind: Binding | ((...args: any[]) => any), thisArg?: object | KeyScope, scope?: KeyScope): number | RegExp {
+    const binding = (typeof bind === 'function') ? { func: (argVal, key) => bind(argVal, key), thisArg, } as Binding : bind;
+    const keyScope = (typeof bind === 'function') ? scope : thisArg as KeyScope;
+    if (key instanceof RegExp) return this.localBindToRegex(keyScope, key, binding);
+    if (typeof key === 'string') key = this.getKeyCodeFromChar(key);
+    return this._bindKey(this.getKeymap(keyScope), key, binding);
   }
 
-  setKeyC(key: RegExp, func: (...args: any[]) => any, thisArg?: object, scope?: KeyScope) {
-    return this.setKey(key, { func: (argVal, key) => func(), thisArg, }, scope); 
-  }
-
-  localSetKeyFromChar(scope: KeyScope, str: string, bind: Binding) {
+  localSetKeyFromChar(scope: KeyScope, str: KeyStr, bind: Binding) {
     return this._bindKey(this.getKeymap(scope), this.getKeyCodeFromChar(str), bind);
   }
   localBindToRegex(scope: KeyScope, regex: RegExp, bind: Binding) {

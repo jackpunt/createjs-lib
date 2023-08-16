@@ -3,11 +3,6 @@ import { AT, Binding, KeyBinder } from './src/index.js'
 const kb0 = new KeyBinder()
 const kb = KeyBinder.keyBinder; // assert( kb === kb0)
 
-function setKey(codeStr: string, bind: Binding): number {
-  let kcode = kb.setKey(codeStr, bind)
-  console.log('bind', { codeStr, kcode, func: bind.func })
-  return kcode
-}
 let kcodeRecv: number = undefined;
 let codekRecv: string = undefined;
 let ekeyRecv: string = undefined;
@@ -55,20 +50,22 @@ const kbEvents: KeyboardEvent[] = [
 const recv = AT.ansiText(['green'], 'recv');
 const FAIL = AT.ansiText(['$red'], 'FAIL');
 //kbEvents.forEach(evt => kb.dispatchEvent(evt))
-kbEvents.forEach(evt => { 
-  const keyback: Binding = { func: onKeyEvent }
-  const kcode = kb0.getKeyCodeFromEvent(evt)
-  const codeStr = kb0.keyCodeToString(kcode)
-  const bind = keyback; 
-  const kb = new KeyBinder(true);
-  const kcodeB = kb.setKey(codeStr, bind)
-  console.log('bind', { codeStr, kcode, func: bind.func })
-  // const kcodeB = setKey(codeStr, keyback) // uses getKeyCodeFromChar('A-Alt')
-  // const kcodeC = kb.setKey(codeStr, onKeyEvent, this) // uses getKeyCodeFromChar('A-Alt')
-  kcodeRecv = undefined
-  codekRecv = '*****'
-  const rv = kb.dispatchKey(evt); 
-  const test = (!kcodeRecv || kcodeRecv !== kcode) ? FAIL : recv;
-  console.log(test, { codeRec: codekRecv, Kcode: kcodeRecv, Key: ekeyRecv });
-  console.log('done', { '^^^^^': codeStr, kcode, rv, kcodeB })
-})
+for (let mode = 1; mode <= 3; mode++) {
+  console.log(`-------- mode ${mode} ----------`);
+  kbEvents.forEach(evt => {
+    const kcode = kb0.getKeyCodeFromEvent(evt)
+    const codeStr = kb0.keyCodeToString(kcode)
+    const kb = new KeyBinder(true);
+    const [kcodeB, func] =
+      (mode == 1) ? [kb.setKey(codeStr, { func: onKeyEvent }), 'onKeyEvent'] :
+        (mode == 2) ? [kb.setKey(codeStr, () => onKeyEvent(undefined, codeStr)), '() => onKeyEvent(...)'] :
+          (mode == 3) ? [kb.setKey(codeStr, onKeyEvent, this), 'this.onKeyEvent'] : [,];
+    console.log('bind', { codeStr, kcode, func })
+    kcodeRecv = undefined
+    codekRecv = '*****'
+    const rv = kb.dispatchKey(evt);
+    const test = (!kcodeRecv || kcodeRecv !== kcode) ? FAIL : recv;
+    console.log(test, { codeRec: codekRecv, Kcode: kcodeRecv, Key: ekeyRecv });
+    console.log('done', { '^^^^^': codeStr, kcode, rv, kcodeB })
+  })
+}
