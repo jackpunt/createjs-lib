@@ -1,5 +1,5 @@
 import { F } from '@thegraid/common-lib';
-import { Stage, Text } from '@thegraid/easeljs-module';
+import { DisplayObject, Stage, Text } from '@thegraid/easeljs-module';
 
 /** if no canvas, then disable MouseOver, DOMEvents, tick & tickChildren 
  * @param canvasId the DOM ID of a \<canvas> Element (or undefined for no canvas)
@@ -27,4 +27,28 @@ export function textWidth(text: string, font_h: number, fontName?: string) {
  */
 export function maxTextWidth(items: (string | { text: string })[], font_h: number, fontName?: string) {
   return items.reduce((w, item) => Math.max(w, textWidth((typeof item == 'string') ? item : item.text, font_h, fontName)), 0)
+}
+
+/** run function after 'drawend' on stage. */
+export function afterUpdate(cont: DisplayObject, after: () => void, scope?: any) {
+  cont.stage.on('drawend', after, scope, true);
+  cont.stage.update();
+}
+
+/** async wrapper for afterUpdate */
+export async function awaitUpdate(cont: DisplayObject) {
+  return new Promise<void>((res, rej) => {
+    afterUpdate(cont, res);
+  })
+}
+
+/** dispObj.visible = false; awaitUpdate().then(setTimeout(dispObj.visible = true; after(), dwell)) */
+export async function blinkAndThen(dispObj: DisplayObject, after: () => void, dwell = 0) {
+  dispObj.visible = false;
+  awaitUpdate(dispObj).then(() => {
+    setTimeout(() => {
+      dispObj.visible = true;
+      after();
+    }, dwell)
+  });
 }
