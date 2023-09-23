@@ -30,7 +30,7 @@ export interface ParamItem extends DropdownItem {
   text: string;
   /** value associated, if different from text */
   value: any;
-  /**  */
+  /** set/get fieldName from target Object */
   fieldName?: string
 }
 // in each Item: {[button:DropdownButton], text: string, fieldName: string, value: ParamType}
@@ -94,13 +94,19 @@ export class ParamGUI extends Container {
    * @param opts style for this spec/line/item; opts.style -> this.defStyle -> chooser
    */
   makeParamSpec(fieldName: string, valueAry: any[], opts: ParamOpts = {}): ParamSpec {
-    let { name, fontSize, fontColor, fontName, onChange, target, chooser } = opts
-    target = target || this.target // so spec *always* has a target
-    let choices = this.makeChoiceItems(fieldName, valueAry) // [{text, fieldname, value}]
-    let style = DropdownButton.mergeStyle(opts.style || {}, this.defStyle)
-    let spec = { name, fieldName, choices, fontSize, fontColor, fontName, style, onChange, target, chooser }
-    this.specs.push(spec)
-    return spec
+    let { name, fontSize, fontColor, fontName, onChange, target, chooser } = opts;
+    target = target || this.target; // so spec *always* has a target
+    let choices = this.makeChoiceItems(fieldName, valueAry); // [{text, fieldname, value}]
+    let style = DropdownButton.mergeStyle(opts.style || {}, this.defStyle);
+    let spec = {
+      name, fieldName, choices,
+      fontSize: fontSize ?? style.fontSize,
+      fontColor,
+      fontName: fontName ?? style.fontName,
+      style, onChange, target, chooser
+    };
+    this.specs.push(spec);
+    return spec;
   }
 
   /**
