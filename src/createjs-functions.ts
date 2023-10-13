@@ -1,5 +1,17 @@
-import { F } from '@thegraid/common-lib';
-import { DisplayObject, Stage, Text } from '@thegraid/easeljs-module';
+import { Constructor, F } from '@thegraid/common-lib';
+import { Container, DisplayObject, Stage, Text } from '@thegraid/easeljs-module';
+
+declare module "@thegraid/easeljs-module" {
+  interface Container {
+    removeChildType<T extends DisplayObject>(type: Constructor<T>, pred?: (dobj: T) => boolean ): T[];
+  }
+}
+Container.prototype.removeChildType = function removeChildType<T extends DisplayObject>(type: Constructor<T>, pred = (dobj: T) => true ): T[] {
+  const cont = this as Container;
+  const rems = cont.children.filter((c: DisplayObject) => (c instanceof type) && pred(c)) as T[];
+  cont.removeChild(...rems);
+  return rems;
+};
 
 /** if no canvas, then disable MouseOver, DOMEvents, tick & tickChildren 
  * @param canvasId a \<canvas> Element OR the DOM ID of a \<canvas> Element (or undefined for no canvas)
