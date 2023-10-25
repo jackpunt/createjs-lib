@@ -1,5 +1,6 @@
 // The barrel file
 export * from '@thegraid/common-lib'
+export * from './center-text.js'
 export * from './chooser.js'
 export * from './createjs-functions.js'
 export * from './dragger.js'
