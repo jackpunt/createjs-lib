@@ -222,7 +222,7 @@ export class Dragger {
     dragCtx.event = e
     e.stopPropagation()
     obj.rotation = dragCtx.rotation
-    let par = dragCtx.dropCont ?? dragCtx.srcCont, ndx = dragCtx.dropNdx;
+    const par = dragCtx.dropCont ?? dragCtx.srcCont, ndx = (par === dragCtx.srcCont) ? dragCtx.dropNdx : par.numChildren;
     // last dropTarget CardContainer under the dragged Card  (or orig parent)
     //    console.log(stime(this, ".pressup: target.name="), e.target.name, "dropfunc?", dropfunc, " dragCtx?", dragCtx, 
     //     "\n   obj.parent=", obj.parent.name,"obj=", obj, "\n   par.name=",par.name, "(dragCtx.lastCont) par=", par,"\n   event=", e)
