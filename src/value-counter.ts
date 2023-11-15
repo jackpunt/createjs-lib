@@ -75,7 +75,7 @@ export class ValueCounter extends Container {
   }
 
   /** set Label (at bottom of box) */
-  setLabel(label: string | Text, offset: XY = { x: this.label?.x ?? 0, y: this.label?.y ?? this.high * .9 }, fontSize = this.labelFontSize) {
+  setLabel(label: string | Text, offset: XY = { x: this.label?.x ?? 0, y: this.label?.y ?? this.fontSize * .9 }, fontSize = this.labelFontSize) {
     this.removeChild(this.label);
     this.labelFontSize = fontSize;
     let labelText = label as Text;
