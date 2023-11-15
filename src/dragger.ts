@@ -171,8 +171,8 @@ export class Dragger {
       moveScaleCont(obj as Container, event)   // typically: the whole ScaleableContainer
     } else if (obj == dragCtx.targetD) {
       obj.parent.globalToLocal(event.stageX, event.stageY, obj) // move obj to stageX, stageY
-      obj.x -= dragCtx.dxy.x;       // offset by dxy
-      obj.y -= dragCtx.dxy.y
+      obj.x -= dragCtx.dxy.x * obj.scaleX;       // offset by dxy
+      obj.y -= dragCtx.dxy.y * obj.scaleY;
     } else {
       Dragole.logEvent("unexpected currentTarget: " + obj.name);
       console.warn(stime(this, ".pressmove: unexpected target:"), { obj, event: event, targetC: dragCtx.targetC, targetD: dragCtx.targetC, dragCtx: Obj.fromEntriesOf(dragCtx) })

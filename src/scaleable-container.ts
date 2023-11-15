@@ -7,13 +7,9 @@ export type SC = ScaleableContainer
 export type ScaleParams = { zscale?: number, initScale?: number, scale0?: number, steps?: number, unscaleMin?: number, scaleMax?: number, unscaleMax?: number }
 
 export class ScaleEvent extends Event {
-  constructor(type: string, scale: number, scaleNdx: number) {
-    super(type, true, true)
-    this.scale = scale
-    this.scaleNdx = scaleNdx
+  constructor(type: string, public scaleNdx: number, public scale: number, public oldScale: number) {
+    super(type, true, true);
   }
-  scale: number;
-  scaleNdx: number
 }
 /** ScalableContainer is a Container, implements transforms to scale the display.
  * Child elements can be scaled with the Container (addChild)
@@ -72,9 +68,6 @@ export class ScaleableContainer extends Container {
     let stage = contr.stage;
     let di: number = 0 // accumulate scroll increments
     const mouseWheelHandler = ((e: WheelEvent) => {
-      let pmx: number = stage.mouseX / stage.scaleX;
-      let pmy: number = stage.mouseY / stage.scaleY;
-      let p: Point = new Point(pmx, pmy);
       let delta = -e.deltaY // +N or -N (N greater for faster scroll, zscale for slower)
       // noting that *I* have scroll reversed from Apple std of "drag the document"
       //console.log(stime(this, ".mouseWheelHandler e="), delta, e.deltaX, e.deltaZ, e);
@@ -82,7 +75,10 @@ export class ScaleableContainer extends Container {
       let dj = Math.trunc(di)
 
       if (dj != 0) {
-        contr.scaleContainer(dj, p);  // zoom in/out by dj
+        let pmx: number = stage.mouseX / stage.scaleX;
+        let pmy: number = stage.mouseY / stage.scaleY;
+        let p: Point = new Point(pmx, pmy);
+        contr.scaleContainer(dj, p);  // zoom in/out by dj (typically: +/- 1)
         di -= dj;
         stage.update();
       }
@@ -167,12 +163,14 @@ export class ScaleableContainer extends Container {
    * Set scale exactly; set scale index approximately and return it.
    * @param ns new scale
    * @param xy scale around this point (so 'p' does not move on display) = {0,0}
-   * @param sxy move to offset? in new coords?
+   * @param sxy offset to position (0,0)
    * @returns the nearby scaleNdx
    */
   setScale(ns = 1.0, xy: XY = { x: 0, y: 0 }, sxy: XY = { x: 0, y: 0 }): number {
     this.getScale(this.findIndex(ns)); // close appx, no side effects.
     this.scaleInternal(this.scaleX, ns, xy);
+    this.x = sxy.x - xy.x * ns;
+    this.y = sxy.y - xy.y * ns;
     return ns;
   }
 
@@ -235,14 +233,18 @@ export class ScaleableContainer extends Container {
       sc.y = (p.y + (sc.y - p.y) * ns / os);
     }
     sc.scaleX = sc.scaleY = ns;
-    // console.log(stime(this, ".scaleInternal:   os="), os.toFixed(4)+" ns="+ns.toFixed(4)+" scale="+scale.toFixed(4)
-    //                           +"  p.x="+p.x+"  p.y="+p.y+"  x="+x+" y="+y);
-    this.setInvScale(ns)
-    //console.log(stime(this, ".invScale="), this.invScale, this.scaleNdx, ns*this.invScale);
+
+    this.invScale0 = this.invScale;
+    this.setInvScale(ns);
     this.unscaleAll();
-    if (ns != os) this.dispatchEvent(new ScaleEvent(S.scaled, ns, this.scaleNdx))
+
+    if (ns != os || this.invScale !== this.invScale0) {
+      this.dispatchEvent(new ScaleEvent(S.scaled, this.scaleNdx, ns, os));
+    }
     return ns
   }
+  invScale0: number = 0;
+
   /** Scalable.container.addChild() */
   addChildXY(child: DisplayObject, x: number, y: number): DisplayObject {
     this.addChild(child);
@@ -253,17 +255,26 @@ export class ScaleableContainer extends Container {
 
   private invScale: number = 1.0;
   private _unscaled: Array<DisplayObject> = new Array<DisplayObject>(); // Set<DisplayObject>
-  public addUnscaled(dobj: DisplayObject): void {
+  public addUnscaled(dobj: DisplayObject, invScMin?: number, invScMax?: number ): void {
+    dobj['invScMin'] = invScMin;
+    dobj['invScMax'] = invScMax;
     this._unscaled.push(dobj);
     this.unscaleObj(dobj);
   }
+
   public removeUnscaled(dobj: DisplayObject): void {
     let ndx: number = this._unscaled.indexOf(dobj);
     if (ndx < 0) return;
-    delete this._unscaled[ndx];
+    this._unscaled.splice(ndx, 1);
+    delete dobj['invScMin'];
+    delete dobj['invScMax'];
   }
+
   protected unscaleObj(dobj: DisplayObject, invScale = this.invScale): void {
     if (dobj != undefined) {
+      const invScMin = dobj['invScMin'], invScMax = dobj['invScMax'];
+      if (invScMin !== undefined) invScale = Math.max(invScale, invScMin);
+      if (invScMax !== undefined) invScale = Math.min(invScale, invScMax);
       dobj.regX *= dobj.scaleX/invScale
       dobj.regY *= dobj.scaleY/invScale
       dobj.scaleX = invScale;

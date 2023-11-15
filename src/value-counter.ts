@@ -1,5 +1,5 @@
 import { Container, Event, Shape, Text, EventDispatcher, DisplayObject } from '@thegraid/easeljs-module';
-import { XY, S, C, F } from './index.js';
+import { XY, S, C, F, CenterText } from './index.js';
 
 /** send a simple value of type to target. */
 export class ValueEvent extends Event {
@@ -13,11 +13,13 @@ export class ValueEvent extends Event {
     return target.dispatchEvent(new ValueEvent(type, value));
   }
 }
-/** Text in a colored circle, possibly with a label */
 
+/** Container with a Box (colored circle/ellispe/shape), a value Text, and optional label Text.
+ * 
+ * ValueCounter can be attached to a Container and the value updated by a ValueEvent.
+ */
 export class ValueCounter extends Container {
-
-  readonly text = new Text(undefined);  // a vacuous Text Object.
+  static defaultSize = 16;
   color: string;        // backgroud color
   box: DisplayObject;
   value: number | string;
@@ -27,19 +29,35 @@ export class ValueCounter extends Container {
   /** height of curently displayed ellipse */
   high: number;
   /** font size in px */
-  fontSize: number = 16;
-  fontName: string = undefined; // use F.defaultFont
-  fontSpec: string = F.fontSpec(this.fontSize, this.fontName);
+  fontSize: number = ValueCounter.defaultSize;
+  fontName: string;
+  fontSpec: string;
   label: Text;
-  labelFontSize: number = 16;
+  labelFontSize: number = ValueCounter.defaultSize;
+  readonly text: Text;
 
-  constructor(name: string, initValue: number | string = 0, color = C.coinGold, fontSize = 16, fontName?: string, textColor?: string) {
+  /**
+   * Default shape is a coinGold ellipse around the value.
+   * 
+   * override makeBox, newBox, boxAlign, boxSize, for other options.
+   * 
+   * Initially mouseEnabled = mouseChildren = false;
+   * @param name 
+   * @param initValue 
+   * @param color [C.coinGold]
+   * @param fontSize [ValueCounter.defaultSize]
+   * @param fontName [F.defaultFont]
+   * @param textColor [Text.defaultColor = 'BLACK']
+   */
+  constructor(name: string, initValue: number | string = 0, color = C.coinGold, fontSize = ValueCounter.defaultSize, fontName?: string, textColor?: string) {
     super();
     this.name = name;
     this.color = color;
     this.mouseEnabled = false;
     this.mouseChildren = false;
-    this.initValueText(initValue, fontSize, fontName, textColor);
+    this.fontSpec = F.fontSpec(fontSize, fontName);
+    this.text = new CenterText(`${initValue}`, this.fontSpec, textColor);
+    this.setFont(fontSize, fontName, textColor);
     this.setValue(initValue);
   }
 
@@ -47,7 +65,7 @@ export class ValueCounter extends Container {
    * repaint shape and text with new color/size/font.
    * Invoked by supplying extra args to setValue().
    */
-  protected setFont(fontSize = this.fontSize, fontName = this.fontName, textColor = this.text.color ?? C.BLACK) {
+  protected setFont(fontSize = this.fontSize, fontName = this.fontName, textColor = this.text?.color ?? C.BLACK) {
     this.fontSize = fontSize;
     this.fontName = fontName;
     this.fontSpec = F.fontSpec(this.fontSize, this.fontName);
@@ -56,15 +74,8 @@ export class ValueCounter extends Container {
     this.wide = -1; // provoke newBox()
   }
 
-  protected initValueText(initValue: number | string, fontSize: number, fontName?: string, textColor = C.BLACK) {
-    this.text.text = `${initValue}`;
-    this.setFont(fontSize, fontName, textColor); // save fontSpec
-    this.text.textAlign = 'center';
-    this.text.textBaseline = 'middle';
-  }
-
   /** set Label (at bottom of box) */
-  setLabel(label: string | Text, offset: XY = { x: this.label?.x ?? 0, y: this.label?.y ?? this.high }, fontSize = this.labelFontSize) {
+  setLabel(label: string | Text, offset: XY = { x: this.label?.x ?? 0, y: this.label?.y ?? this.high * .9 }, fontSize = this.labelFontSize) {
     this.removeChild(this.label);
     this.labelFontSize = fontSize;
     let labelText = label as Text;
@@ -134,8 +145,6 @@ export class ValueCounter extends Container {
   /** display new value, possibly new color, fontSize, fontName, textColor */
   setValue(value: number | string, color = this.color, fontSize = this.fontSize, fontName = this.fontName, textColor = this.text?.color ?? C.BLACK) {
     this.value = value;
-    // TODO: remove workaround for old constructor:
-    if (!this.text) this.initValueText(undefined, fontSize, fontName, textColor);
     if (color !== this.color) {
       this.color = color;
       this.wide = -1; // force rebuild
@@ -164,7 +173,7 @@ export class ValueCounter extends Container {
     this.x = offset.x;
     this.y = offset.y;
     if (!!target && !!type) {
-      let valff = valf || ((ve: ValueEvent) => ve.value as string | number);
+      let valff = valf ?? ((ve: ValueEvent) => ve.value as string | number);
       target.on(type, ((ve: Event) => this.updateValue(valff(ve))), this)[S.Aname] = "counterValf";
     }
   }
