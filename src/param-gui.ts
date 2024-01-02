@@ -138,13 +138,13 @@ export class ParamGUI extends Container {
   }
   /** set text for the label of the indicated line/Chooser */
   setNameText(fieldName: string, name: string = fieldName): Text {
-    let line = this.findLine(fieldName)
+    const line = this.findLine(fieldName);
     if (!!line.nameText) line.removeChild(line.nameText)
-    let spec = line.spec
-    let text = new Text(name, F.fontSpec(spec.fontSize || 32, spec.fontName), spec.fontColor)
+    const spec = line.spec
+    const text = new Text(name, F.fontSpec(spec.fontSize || 32, spec.fontName), spec.fontColor)
     line.addChild(text)
     line.nameText = text
-    return text
+    return text;
   }
   /** create ParamLine with Chooser(spec.choices) and Text label 
    * for the nth line of this ParamGUI 
@@ -190,14 +190,14 @@ export class ParamGUI extends Container {
    * suitable entry-point for eval_params: (fieldName, value) 
    */
   selectValue(fieldName: string, value: ParamType, line?: ParamLine): ParamItem | undefined {
-    line = line || this.findLine(fieldName)
-    if (!line) { return undefined }  // fieldName not available
+    const linef = line ?? this.findLine(fieldName);
+    if (!linef) { return undefined }  // fieldName not available
     // invalid value leaves *current* value:
-    let item = line.spec.choices.find(item => (item.value === value)) // {text, value?, fieldName?}
+    const item = linef.spec.choices.find(item => (item.value === value)) ?? linef.spec.choices[0]; // {text, value?, fieldName?}
     // Chooser may be 'set-able' rather than 'select-able'
-    line?.chooser.setValue(value, item || line.spec.choices[0], line.spec.target) ||
-      (item && line?.chooser.select(item)) // will auto-invoke onItemChanged => setValue(item) OR onChange(...)
-    return item
+    linef.chooser.setValue(value, item, linef.spec.target) ||
+      (item && linef.chooser.select(item)) // will auto-invoke onItemChanged => setValue(item) OR onChange(...)
+    return item;
   }
 
   /** return target[fieldName]; suitable for override */

@@ -44,5 +44,5 @@ export abstract class Chooser extends Container {
    * @param target the associated object to which fieldName applies
    * @return false if value has not been set; call select(item) instead.
    */
-  setValue(value: any, item: ChoiceItem, target: object): boolean { return false }
+  setValue(value: any, item: ChoiceItem, target?: object): boolean { return false; }
 }
