@@ -1,5 +1,5 @@
 import { Container, Graphics, Shape, Text } from "@thegraid/easeljs-module"
-import { C, F, S, textWidth, XYWH } from "./index.js"
+import { C, F, KeyScope, S, textWidth, XYWH } from "./index.js"
 import { KeyBinder, Binding, Keymap, BindFunc  } from "./index.js";
 
 export type TextStyle = { bgColor?: string, fontSize?: number, fontName?: string, textColor?: string }
@@ -68,6 +68,7 @@ export class EditBox extends Container {
     kb.setKey("C-k", { thisArg: this, func: this.kill }, scope)
     kb.setKey("C-y", { thisArg: this, func: this.yank }, scope)
     kb.setKey("C-l", { thisArg: this, func: this.repaint }, scope)
+    kb.setKey('M-v', () => { this.pasteClipboard() })
     this.on(S.click, (ev: MouseEvent) => { this.setFocus(true); ev.stopImmediatePropagation() })
   }
   setStyle(style?: TextStyle) {
@@ -77,6 +78,7 @@ export class EditBox extends Container {
     style?.hasOwnProperty('bgColor') && (this.bgColor = style.bgColor)
     this.makeCursor()
   }
+  /** replace buffer contents with given text string */
   setText(text = '', style?: TextStyle) {
     this.setStyle(style)
     this.text.font = F.fontSpec(this.fontSize, this.fontName)
@@ -158,8 +160,21 @@ export class EditBox extends Container {
     this.point += EditBox.killBuf.length
     this.repaint()
   }
+
+  /**
+   * insert text from window system clipboard: await navigator.clipboard.readText();
+   * @param pt where to inject text [this.point]
+   * @param n number of following chars to delete [0], if n<0 delete ALL following chars
+   */
+  pasteClipboard(pt = this.point, n = 0) {
+    const paste = async () => {
+      let text = await navigator.clipboard.readText();
+      this.splice(pt, n < 0 ? undefined : n, text);
+    }
+    paste();
+  }
   //_keyMap: Keymap
-  keyScope: { lastFunc?: BindFunc, _keyMap?: Keymap } = {}
+  keyScope: KeyScope = {};
   
   setFocus(f = true) {
     KeyBinder.keyBinder.setFocus(f ? this.keyScope : undefined)
