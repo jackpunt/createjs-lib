@@ -62,7 +62,8 @@ export class DropdownButton extends Container {
   text: Text;
   fontSize: number;
   fontName: string;
-  textAlign: string
+  textAlign: string;
+  override parent: DropdownChoice;
 
   // Private Members
   pressed: boolean;
@@ -152,7 +153,7 @@ export class DropdownButton extends Container {
       _self.hover = true; this.render();
     });
     this.shape.addEventListener("mouseout", (e: MouseEvent) => {
-      ;(this.parent as DropdownChoice).isMouseOver(e)
+      this.parent.isMouseOver(e)
       _self.hover = false; this.render();
     });
     // Initialization For Stage

@@ -41,10 +41,15 @@ export function maxTextWidth(items: (string | { text: string })[], font_h: numbe
   return items.reduce((w, item) => Math.max(w, textWidth((typeof item == 'string') ? item : item.text, font_h, fontName)), 0)
 }
 
-/** run function after 'drawend' on stage. */
-export function afterUpdate(cont: DisplayObject, after: () => void, scope?: any) {
-  cont.stage.on('drawend', after, scope, true);
-  cont.stage.update();
+/**
+ * stage.update() then after 'drawend' on stage run afterFunc()
+ * @param dispObj any DisplayObject to find the stage.
+ * @param afterFunc if supplied, invoke after stage updates.
+ * @param scope thisArg for afterFunc
+ */
+export function afterUpdate(dispObj: DisplayObject, afterFunc?: () => void, scope?: any) {
+  afterFunc && dispObj.stage.on('drawend', afterFunc, scope, true);
+  dispObj.stage.update();
 }
 
 /** async wrapper for afterUpdate */

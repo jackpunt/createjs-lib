@@ -38,11 +38,33 @@ export abstract class Chooser extends Container {
     return item
   }
   /**
-   * Specialized per-Chooser setValue() [for ParamGUI?]
+   * Set value in target in the prototype where it is defined.
+   * 
+   * Used when target extends a library class compiled to use the base class.
+   * 
+   * For example: TP-local extends TP-lib when using hexlib
+   * 
    * @param value the new value to be set
    * @param item included for those that need item.fieldName or such
    * @param target the associated object to which fieldName applies
    * @return false if value has not been set; call select(item) instead.
    */
   setValue(value: any, item: ChoiceItem, target?: object): boolean { return false; }
+
+  setInheritedValue(value: any, item: ChoiceItem, target?: object): boolean {
+    const findSlotInProto = (name: string, obj: Object) => {
+      if (Object.getOwnPropertyNames(obj).includes(name)) return obj;
+      const proto = Object.getPrototypeOf(obj)
+      if (proto) { 
+        return findSlotInProto(name, proto) 
+      } else { 
+        return undefined;
+      }
+    }
+    const name = item.fieldName;
+    const obj = findSlotInProto(name, target)
+    if (!obj) return false;
+    obj[name] = value;
+    return true;
+  }
 }
