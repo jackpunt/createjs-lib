@@ -92,6 +92,14 @@ export class ParamGUI extends Container {
    * @param fieldName 
    * @param valueAry array of choices (or [value] mutable by the chooser)
    * @param opts style for this spec/line/item; opts.style -> this.defStyle -> chooser
+   * - name
+   * - fontName
+   * - fontColor
+   * - fontSize
+   * - target
+   * - chooser: Constructor\<Chooser>
+   * - onChange
+   * - style: ChoiceStyle (Text, rootColor, rootTextColor, arrowColor, spacing)
    */
   makeParamSpec(fieldName: string, valueAry: any[], opts: ParamOpts = {}): ParamSpec {
     let { name, fontSize, fontColor, fontName, onChange, target, chooser } = opts;
