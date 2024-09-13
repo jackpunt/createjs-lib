@@ -1,5 +1,6 @@
 import { Container, Event, Shape, Text, EventDispatcher, DisplayObject } from '@thegraid/easeljs-module';
 import { XY, S, C, F, CenterText } from './index.js';
+import { NamedContainer } from './named-container.js';
 
 /** send a simple value of type to target. */
 export class ValueEvent extends Event {
@@ -18,7 +19,7 @@ export class ValueEvent extends Event {
  * 
  * ValueCounter can be attached to a Container and the value updated by a ValueEvent.
  */
-export class ValueCounter extends Container {
+export class ValueCounter extends NamedContainer {
   static defaultSize = 16;
   color: string;        // backgroud color
   box: DisplayObject;
@@ -50,8 +51,7 @@ export class ValueCounter extends Container {
    * @param textColor [Text.defaultColor = 'BLACK']
    */
   constructor(name: string, initValue: number | string = 0, color = C.coinGold, fontSize = ValueCounter.defaultSize, fontName?: string, textColor?: string) {
-    super();
-    this.name = name;
+    super(name);
     this.color = color;
     this.mouseEnabled = false;
     this.mouseChildren = false;

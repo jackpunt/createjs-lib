@@ -39,6 +39,9 @@ type KeyCode = number;
 type KeyStr = string;
 /** 'Alt' | 'Escape' | 'Return' ... */
 type KeyName = string;
+/** use closure function for Binding */
+type kFunc = ((...args: any[]) => any);
+
 /** unless BindFunc returns true, then e.preventDefault() */
 export type BindFunc = (arg?: any, key?: KeyStr) => boolean | void
 export type KeyScope = { keymap?: Keymap, lastFunc?: BindFunc }
@@ -221,10 +224,10 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     return this.globalSetKey(this.getKeyCodeFromChar(str), bind);
   }
 
-  setKey(key: RegExp,          bind: Binding | ((...args: any[]) => any), thisArg?: object, scope?: KeyScope): RegExp
+  setKey(key: RegExp,          bind: Binding | kFunc, thisArg?: object, scope?: KeyScope): RegExp
   setKey(key: number | string, bind: Binding, scope?: KeyScope): number
-  setKey(key: number | string, bind: ((...args: any[]) => any), thisArg?: object, scope?: KeyScope): number
-  setKey(key: number | string | RegExp, bind: Binding | ((...args: any[]) => any), thisArg?: object | KeyScope, scope?: KeyScope): number | RegExp {
+  setKey(key: number | string, bind: kFunc, thisArg?: object, scope?: KeyScope): number
+  setKey(key: number | string | RegExp, bind: Binding | kFunc, thisArg?: object | KeyScope, scope?: KeyScope): number | RegExp {
     const binding = (typeof bind === 'function') ? { func: (argVal, key) => bind(argVal, key), thisArg, } as Binding : bind;
     const keyScope = (typeof bind === 'function') ? scope : thisArg as KeyScope;
     if (key instanceof RegExp) return this.localBindToRegex(keyScope, key, binding);

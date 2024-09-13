@@ -1,4 +1,4 @@
-import { Container } from "@thegraid/easeljs-module"
+import { NamedContainer } from "./index.js";
 
 export type ChoiceType = any;  // string | number | boolean
 export type ChoiceItem = { text: string, value: ChoiceType, fieldName?: string } // DropdownItem
@@ -18,9 +18,9 @@ export interface ChoiceStyle {
 export type ChooserConst = new (items: ChoiceItem[], item_w: number, item_h: number, style?: ChoiceStyle) => Chooser
 
 /** abstract base class for other Chooser implementations */
-export abstract class Chooser extends Container {
+export abstract class Chooser extends NamedContainer {
   constructor(public items: ChoiceItem[], item_w: number, item_h: number, style?: ChoiceStyle) {
-    super()
+    super('Chooser')
   }
   _itemChanged: (item: ChoiceItem) => void;
   /** application sets a callback, to react when ChoiceItem is selected. */

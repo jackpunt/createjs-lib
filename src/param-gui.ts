@@ -2,6 +2,7 @@ import { Container, Text } from "@thegraid/easeljs-module";
 import type { ChoiceStyle, ChoiceType, Chooser, ChooserConst } from "./index.js";
 import { DropdownButton, DropdownChoice, DropdownItem, DropdownStyle } from "./index.js";
 import { C, F, maxTextWidth, stime, TextStyle } from './index.js' //'@thegraid/createjs-lib' //
+import { NamedContainer } from "./named-container.js";
 
 export type ParamType = ChoiceType
 
@@ -38,9 +39,9 @@ export interface ParamItem extends DropdownItem {
  * - spec: ParamSpec { fieldName, target } 
  * - chooser: DropdownChoice { items: { value[] } }
  */
-export class ParamLine extends Container {
+export class ParamLine extends NamedContainer {
   constructor(spec: ParamSpec) {
-    super()
+    super('ParamLine')
     this.spec = spec
   }
   get height():number { return this.getBounds().height }
@@ -65,14 +66,14 @@ export class ParamLine extends Container {
  * The 'onChange' action defaults to setValue(item) { this.target[item.fieldName] = item.value }
  * but can be any function(item) => void.
  */
-export class ParamGUI extends Container {
+export class ParamGUI extends NamedContainer {
   /**
    * A Stack of Choosers to set various game parameters.
    * @param target change fields of this object (by default... ParamLine can override)
    * @param style changes from DropdownButton.defStyle
    */
   constructor(target: object, style: DropdownStyle = {}) {
-    super()
+    super('ParamGUI')
     this.target = target
     this.defStyle = DropdownButton.mergeStyle(style)
   }

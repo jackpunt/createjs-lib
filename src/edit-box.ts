@@ -1,6 +1,5 @@
-import { Container, Graphics, Shape, Text } from "@thegraid/easeljs-module"
-import { C, F, KeyScope, S, textWidth, XYWH } from "./index.js"
-import { KeyBinder, Binding, Keymap, BindFunc  } from "./index.js";
+import { Graphics, Shape, Text } from "@thegraid/easeljs-module";
+import { Binding, C, F, KeyBinder, KeyScope, NamedContainer, S, textWidth, XYWH } from "./index.js";
 
 export type TextStyle = { bgColor?: string, fontSize?: number, fontName?: string, textColor?: string }
 /** a Container with a [rectangle] Shape and a Text.
@@ -9,7 +8,7 @@ export type TextStyle = { bgColor?: string, fontSize?: number, fontName?: string
  * EditBox:
  * localSetKey(BS,DEL,C-A, C-K, C-W, C-Y, C-B, C-F) to edit functions...?
  */
-export class EditBox extends Container {
+export class EditBox extends NamedContainer implements TextStyle {
   // TODO: find platform 'clipboard' so can cut/paste outside createjs
   static killBuf: string[] = [] // from C-k, suitable for C-y
   box: Shape = new Shape()
@@ -34,22 +33,35 @@ export class EditBox extends Container {
   /**
    * A box can display & edit Text
    * @param rect  bounding rectange for box
-   * @param bgColor fillColor for box
-   * @param fontSize for text in box
-   * @param fontName for text in box
-   * @param textColor for text in box
+   * @param style \{
+   *  - bgColor: fillColor for box
+   *  - fontSize: for text in box
+   *  - fontName: for text in box
+   *  - textColor for text in box
+   * 
+   * }
    */
-  constructor(rect: XYWH = { x: 0, y: 0, w: 100, h: 40 }, style: TextStyle) {
-    super()
+  constructor(rect: XYWH = { x: 0, y: 0, w: 100, h: 40 }, style?: TextStyle) {
+    super('EditBox')
     this.rect = rect
     this.addChild(this.box)
     this.addChild(this.text)
     this.reset(rect, '', style)
     this.initKeys()
   }
-  reset(rect: XYWH, text = this.buf.join(''), style?: TextStyle) {
-    this.box.graphics.c().f(this.bgColor).rect(rect.x, rect.y, rect.w, rect.h)
+  /** draw bounding box, and repaint Text */
+  reset({ x, y, w, h }: XYWH, text = this.buf.join(''), style?: TextStyle) {
+    this.box.graphics.c().f(this.bgColor).rect(x, y, w, h)
     this.setText(text, style)
+  }
+
+  /**
+   * resize box to hold given Text
+   * @param text [this.text]
+   */
+  fitRectToText(text = this.text) {
+    const { x, y, width: w, height: h } = text.getBounds();
+    this.reset({ x, y, w, h }, text.text);
   }
 
   initKeys() {
@@ -72,10 +84,13 @@ export class EditBox extends Container {
     this.on(S.click, (ev: MouseEvent) => { this.setFocus(true); ev.stopImmediatePropagation() })
   }
   setStyle(style?: TextStyle) {
-    style?.hasOwnProperty('fontSize') && (this.fontSize = style.fontSize)
-    style?.hasOwnProperty('fontName') && (this.fontName = style.fontName)
-    style?.hasOwnProperty('textColor') && (this.textColor = style.textColor)
-    style?.hasOwnProperty('bgColor') && (this.bgColor = style.bgColor)
+    if (style) {
+      const f = ['fontSize', 'fontName', 'textColor', 'bgColor'] as (keyof TextStyle)[];
+      f.forEach(key => {
+        if (style.hasOwnProperty(key))
+          (this as Record<typeof key, string | number>)[key] = style[key]
+      })
+    }
     this.makeCursor()
   }
   /** replace buffer contents with given text string */
@@ -105,11 +120,13 @@ export class EditBox extends Container {
     // first: assume no line-wrap
     this.text.text = text    // TODO: show cursor moved...
     let lines = text.split('\n'), bol = 0, pt = this.point
+    // scan to find line containing cursor (pt)
     lines.forEach((line, n) => {
+      // if cursor on this line, show it in the correct place:
       if (pt >= bol && pt <= bol + line.length) {
         let pre = line.slice(0, pt-bol)
         this.cmark.x = textWidth(pre, this.fontSize, this.fontName)
-        this.cmark.y = n * this.fontSize
+        this.cmark.y = n * this.fontSize // or measuredLineHeight()?
       }
       bol += (line.length + 1)
     })

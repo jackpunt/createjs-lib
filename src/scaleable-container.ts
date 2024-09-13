@@ -1,5 +1,6 @@
 import { Container, DisplayObject, Point, Matrix2D, Event } from '@thegraid/easeljs-module';
 import { XY, S, stime } from './index.js';
+import { NamedContainer } from './named-container.js';
 
 export type SC = ScaleableContainer
 
@@ -15,7 +16,7 @@ export class ScaleEvent extends Event {
  * Child elements can be scaled with the Container (addChild)
  * or remain a constant size even as the Container scales (addUnscaled)
  */
-export class ScaleableContainer extends Container {
+export class ScaleableContainer extends NamedContainer {
   transform?: Matrix2D; // not used
   initIndex: number = 1;
 
@@ -26,10 +27,9 @@ export class ScaleableContainer extends Container {
     * @param parent If supplied: parent.addChild(this); [createjs.stage]
     */
   constructor(parent?: Container, params?: ScaleParams) {
-    super(); // Container();
+    super('ScaleableContainer'); // Container();
     // x0,y0 is used for reset (di==0)
     // also default zoom point; but mousezoom always supplies mousepoint
-    this.name = "ScaleableContainer"
     if (parent) {
       parent.addChild(this);
       //console.log(stime(this, ".constructor parent="), parent);
@@ -160,18 +160,49 @@ export class ScaleableContainer extends Container {
   }
 
   /**
-   * Set scale exactly; set scale index approximately and return it.
+   * Set scale and offsets exactly; set scale index approximately and return it.
    * @param ns new scale
    * @param xy scale around this point (so 'p' does not move on display) = {0,0}
    * @param sxy offset to position (0,0)
    * @returns the nearby scaleNdx
    */
   setScale(ns = 1.0, xy: XY = { x: 0, y: 0 }, sxy: XY = { x: 0, y: 0 }): number {
-    this.getScale(this.findIndex(ns)); // close appx, no side effects.
+    const ndx = this.findIndex(ns);
+    this.getScale(ndx); // close appx, no side effects.
     this.scaleInternal(this.scaleX, ns, xy);
     this.x = sxy.x - xy.x * ns;
     this.y = sxy.y - xy.y * ns;
-    return ns;
+    return ndx;
+  }
+
+  /** Simply rescale around the give pt.
+   * 
+   * Like scaleInternal, but does not unscale or emit an event.
+   * 
+   * @param ns new scale, unrestricted by scale index
+   * @param pt fixed point to scale around
+   * @returns the nearest scale index
+   */
+  setScaleOnly(ns = 1.0, pt = { x: 0, y: 0 }) {
+    const os = this.scaleX, ndx = this.findIndex(ns);
+    this.getScale(ndx); // close appx, no side effects.
+    this.x = (pt.x + (this.x - pt.x) * ns / os);
+    this.y = (pt.y + (this.y - pt.y) * ns / os);
+    this.scaleX = this.scaleY = ns;
+    return ndx;
+  }
+
+  /**
+   * Set scale to arbitrary value; set nearest index; set origin point directly.
+   * @param ns new scale, set scale index to closest value
+   * @param pt set x,y offset directly
+   * @returns 
+   */
+  setScaleXY(ns = 1.0, pt: XY = { x: 0, y: 0 }): number {
+    const ndx = this.findIndex(ns);
+    this.getScale(ndx); // close appx, no side effects.
+    this.scaleInternal(0, ns, pt);
+    return ndx;
   }
 
   /** zoom to the scale[si] 
@@ -191,15 +222,17 @@ export class ScaleableContainer extends Container {
    * @param xy align xy at parent(0,0) [0,0]
    * @param sxy offset xy to screen position sxy [0,0]
    */
-  setScaleXY(si = 0, xy: XY = { x: 0, y: 0 }, sxy: XY = { x: 0, y: 0 }): number {
-    let ns = (this.setScaleIndex(si), this.scaleX)
-    this.x = sxy.x - xy.x * ns; this.y = sxy.y - xy.y * ns
-    return ns
+  setScaleXY1(si = 0, xy: XY = { x: 0, y: 0 }, sxy: XY = { x: 0, y: 0 }): number {
+    this.setScaleIndex(si)
+    this.x = sxy.x - xy.x * this.scaleX; 
+    this.y = sxy.y - xy.y * this.scaleY;
+    return this.scaleX;
   }
   /**
-   * legacy setScaleXY
+   * legacy setScaleXY: set ScaleIndex and XY origin
    * @param si 
    * @param xy set this.{x,y} [0,0]
+   * @deprecated does not include scaleInternal (unscale & event)
    */
   setScaleXY0(si: number, xy: XY = { x: 0, y: 0 }) {
     this.setScaleIndex(si)

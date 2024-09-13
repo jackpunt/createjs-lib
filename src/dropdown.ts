@@ -1,6 +1,5 @@
-import { Container, MouseEvent, Rectangle, Shape, Text } from "@thegraid/easeljs-module";
-import { ChoiceItem, ChoiceStyle, Chooser } from "./index.js";
-import { C, F, Obj, S, XY } from './index.js'; //'@thegraid/createjs-lib'; //
+import { MouseEvent, Rectangle, Shape, Text } from "@thegraid/easeljs-module";
+import { C, ChoiceItem, ChoiceStyle, Chooser, F, NamedContainer, Obj, S, XY } from "./index.js";
 
 // https://jsfiddle.net/s1o1wswr/13/
 
@@ -38,7 +37,7 @@ export interface DropdownStyle extends ChoiceStyle {
   spacing?: number
 }
 
-export class DropdownButton extends Container {
+export class DropdownButton extends NamedContainer {
   static defaultStyle: DropdownStyle = {
     fontSize: 32,
     fontName: undefined,
@@ -100,7 +99,7 @@ export class DropdownButton extends Container {
    * @param style.textAlign default 'left'
    */
   constructor(text: string, w: number, h: number, r: number, click?:(e)=>any, style?: DropdownStyle) {
-    super()
+    super('DropdownButton')
     this.style = DropdownButton.mergeStyle(style)
     // Public Methods
     this.pressed = false;
