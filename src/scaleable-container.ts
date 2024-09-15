@@ -1,5 +1,5 @@
-import { Container, DisplayObject, Point, Matrix2D, Event } from '@thegraid/easeljs-module';
-import { XY, S, stime } from './index.js';
+import { S, XY } from '@thegraid/common-lib';
+import { Container, DisplayObject, Event, Matrix2D, Point } from '@thegraid/easeljs-module';
 import { NamedContainer } from './named-container.js';
 
 export type SC = ScaleableContainer

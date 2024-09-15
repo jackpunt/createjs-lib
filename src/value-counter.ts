@@ -1,5 +1,6 @@
-import { Container, Event, Shape, Text, EventDispatcher, DisplayObject } from '@thegraid/easeljs-module';
-import { XY, S, C, F, CenterText } from './index.js';
+import { C, F, S, XY } from '@thegraid/common-lib';
+import { Container, DisplayObject, Event, EventDispatcher, Shape, Text } from '@thegraid/easeljs-module';
+import { CenterText } from './center-text'
 import { NamedContainer } from './named-container.js';
 
 /** send a simple value of type to target. */

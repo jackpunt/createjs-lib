@@ -1,4 +1,4 @@
-import { NamedContainer } from "./index.js";
+import { NamedContainer } from "./named-container.js";
 
 export type ChoiceType = any;  // string | number | boolean
 export type ChoiceItem = { text: string, value: ChoiceType, fieldName?: string } // DropdownItem

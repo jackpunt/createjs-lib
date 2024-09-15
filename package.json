@@ -1,6 +1,6 @@
 {
   "name": "@thegraid/easeljs-lib",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "common utilities with easeljs-module",
   "main": "dist/index.js",
   "type": "module",

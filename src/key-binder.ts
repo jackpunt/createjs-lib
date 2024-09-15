@@ -1,5 +1,5 @@
+import { S, stime } from '@thegraid/common-lib'
 import { EventDispatcher } from '@thegraid/easeljs-module';
-import { S, stime } from './index.js'
 
 // An injected singleton
 /**
@@ -39,7 +39,7 @@ type KeyCode = number;
 type KeyStr = string;
 /** 'Alt' | 'Escape' | 'Return' ... */
 type KeyName = string;
-/** use closure function for Binding */
+/** use arrow function for Binding */
 type kFunc = ((...args: any[]) => any);
 
 /** unless BindFunc returns true, then e.preventDefault() */
@@ -224,12 +224,19 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     return this.globalSetKey(this.getKeyCodeFromChar(str), bind);
   }
 
-  setKey(key: RegExp,          bind: Binding | kFunc, thisArg?: object, scope?: KeyScope): RegExp
-  setKey(key: number | string, bind: Binding, scope?: KeyScope): number
-  setKey(key: number | string, bind: kFunc, thisArg?: object, scope?: KeyScope): number
-  setKey(key: number | string | RegExp, bind: Binding | kFunc, thisArg?: object | KeyScope, scope?: KeyScope): number | RegExp {
-    const binding = (typeof bind === 'function') ? { func: (argVal, key) => bind(argVal, key), thisArg, } as Binding : bind;
-    const keyScope = (typeof bind === 'function') ? scope : thisArg as KeyScope;
+  /**
+   * Set key to invoke Binding in given KeyScope.
+   * 
+   * Non-global KeyScope is used when selected by keyBinder.setFocus()
+   * @param key a key code, string, or regexp
+   * @param bind Binding or an [arrow] function (gets wrapped in a Binding)
+   * @param scope a KeyScope
+   */
+  setKey(key: number | string | RegExp, bind: Binding | kFunc, scope?: KeyScope): number | RegExp {
+    // binding.func.call(binding.thisArg, binding.argVal, estr);
+    // if bind is [arrow] function, thisArg is deemed to be the KeyScope
+    const binding = (typeof bind === 'function') ? { func: bind } as Binding : bind;
+    const keyScope = scope;
     if (key instanceof RegExp) return this.localBindToRegex(keyScope, key, binding);
     if (typeof key === 'string') key = this.getKeyCodeFromChar(key);
     return this._bindKey(this.getKeymap(keyScope), key, binding);
@@ -255,9 +262,11 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
   // NOTE: bindings will be to kcode chord with a letter, not just shift keys.
   // However, it could happen that C-X is seen before C-M-X, so both would be triggered.
   // Q: Do we need to wait nnn-msecs, so see if another event comes to replace the current one?
-  // nnn < ~50 ?
+  // nnn < 10~20 ?
   // Promise to resolve to (func.call(this, e, kcode0))
   // but when new chord comes, attempt to cancel the Promise, and replace
+  // Apparently/Presumably the OS keyboard driver handles all that...
+  
   /** dispatch keyup and keydown events [keypress dispatches to keydown, the default] 
    * KeyboardEvent is HTML Event, so current/target path is: window, document, html, body
    * - Useless for 'local' bindings; we need a 'focus' on DisplayObject, and target to that.

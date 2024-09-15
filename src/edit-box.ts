@@ -1,5 +1,8 @@
-import { Graphics, Shape, Text } from "@thegraid/easeljs-module";
-import { Binding, C, F, KeyBinder, KeyScope, NamedContainer, S, textWidth, XYWH } from "./index.js";
+import { C, F, S, XYWH } from "@thegraid/common-lib";
+import { Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
+import { textWidth } from "./createjs-functions.js";
+import { Binding, KeyBinder, KeyScope } from "./key-binder.js";
+import { NamedContainer } from "./named-container.js";
 
 export type TextStyle = { bgColor?: string, fontSize?: number, fontName?: string, textColor?: string }
 /** a Container with a [rectangle] Shape and a Text.
@@ -58,15 +61,18 @@ export class EditBox extends NamedContainer implements TextStyle {
   /**
    * resize box to hold given Text
    * @param text [this.text]
+   * @param dw extend box by dw to left and right
+   * @param dh extend box by hw above and below
    */
-  fitRectToText(text = this.text) {
+  fitRectToText(text = this.text, dw = 0, dh = 0) {
     const { x, y, width: w, height: h } = text.getBounds();
-    this.reset({ x, y, w, h }, text.text);
+    this.reset({ x: x - dw, y: y - dw, w: w + 2 * dw, h: h + 2 * dh }, text.text);
   }
 
   initKeys() {
-    let selfKey: RegExp = /^(\S| )$/, kb = KeyBinder.keyBinder, scope = this.keyScope
-    kb.setKey(selfKey, { thisArg: this, func: this.selfInsert }, scope)
+    const selfKey: RegExp = /^(\S)$/, kb = KeyBinder.keyBinder, scope = this.keyScope
+    kb.setKey(selfKey, (arg, estr) => this.selfInsert(estr, estr), scope) // no argVal -> use estr
+    kb.setKey("Space", { thisArg: this, func: this.selfInsert, argVal: ' ' }, scope)
     kb.setKey("Backspace", { thisArg: this, func: this.delBack }, scope)
     kb.setKey("ArrowRight", { thisArg: this, func: this.movePoint, argVal: '+' }, scope)
     kb.setKey("ArrowLeft", { thisArg: this, func: this.movePoint, argVal: '-' }, scope)
@@ -81,7 +87,12 @@ export class EditBox extends NamedContainer implements TextStyle {
     kb.setKey("C-y", { thisArg: this, func: this.yank }, scope)
     kb.setKey("C-l", { thisArg: this, func: this.repaint }, scope)
     kb.setKey('M-v', () => { this.pasteClipboard() })
-    this.on(S.click, (ev: MouseEvent) => { this.setFocus(true); ev.stopImmediatePropagation() })
+    this.on(S.click, (ev: MouseEvent) => { 
+      this.setFocus(true); 
+      const nevt = ev.nativeEvent;
+      nevt.preventDefault(); // ev is non-cancelable, but stop the native event...
+      nevt.stopImmediatePropagation() 
+    })
   }
   setStyle(style?: TextStyle) {
     if (style) {
@@ -122,10 +133,10 @@ export class EditBox extends NamedContainer implements TextStyle {
     let lines = text.split('\n'), bol = 0, pt = this.point
     // scan to find line containing cursor (pt)
     lines.forEach((line, n) => {
-      // if cursor on this line, show it in the correct place:
+      // if cursor on this line, show it in the correct place: assume textAlign='left'
       if (pt >= bol && pt <= bol + line.length) {
         let pre = line.slice(0, pt-bol)
-        this.cmark.x = textWidth(pre, this.fontSize, this.fontName)
+        this.cmark.x = textWidth(pre, this.fontSize, this.fontName) + this.text.x;
         this.cmark.y = n * this.fontSize // or measuredLineHeight()?
       }
       bol += (line.length + 1)
@@ -137,7 +148,7 @@ export class EditBox extends NamedContainer implements TextStyle {
    * @param argVal 'min' 'max' 'bol' 'eol' or number (offset into this.buf == this.text.text)
    * @param eStr (ignored)
    */
-  movePoint(argVal: any, eStr?: string | KeyboardEvent) {
+  movePoint(argVal: any, eStr?: string) {
     if (argVal == 'min') this.point = 0
     else if (argVal == 'max') this.point = this.buf.length
     else if (argVal == '+') this.point = Math.min(this.buf.length, this.point + 1)
@@ -146,33 +157,34 @@ export class EditBox extends NamedContainer implements TextStyle {
     this.repaint()
   }
   /**
-   * insert eStr to text at point++ (insert-before-point)
-   * @param argVal undefined & unused (unless Binding includes something)
-   * @param eStr a single char [\S]
+   * Insert (argVal ?? keyStr) into text at point++ (insert-before-point)
+   * @param argVal char-string to insert, else use eStr
+   * @param keyStr the keyCodeToString, probably from regexp
    */
-  selfInsert(argVal: any, eStr: string | KeyboardEvent) {
-    this.buf.splice(this.point++, 0, eStr as string)
+  selfInsert(argVal?: string, keyStr?: string) {
+    this.buf.splice(this.point++, 0, argVal ?? keyStr as string)
     this.repaint()
   }
-  newline(argVal: any, eStr: string | KeyboardEvent) {
-    this.selfInsert(argVal, '\n')  // TODO: confirm createjs/DOM does the right thing
+  /** selfInsert newline */
+  newline(argVal: any, eStr: string) {
+    this.selfInsert('\n')
   }
   /** delete char before cursor */
-  delBack(argVal: any, eStr: string | KeyboardEvent) {
+  delBack(argVal: any, eStr: string) {
     if (this.point < 1) return
     this.buf.splice(--this.point, 1)
     this.repaint()
   }
-  delForw(argVal: any, eStr: string | KeyboardEvent) {
+  delForw(argVal: any, eStr: string) {
     if (this.point >= this.buf.length) return
     this.buf.splice(this.point, 1)
     this.repaint()
   }
-  kill(argVal: any, eStr: string | KeyboardEvent) {
+  kill(argVal: any, eStr: string) {
     EditBox.killBuf = this.buf.splice(this.point, this.buf.length - this.point)
     this.repaint()
   }
-  yank(argVal: any, eStr: string | KeyboardEvent) {
+  yank(argVal: any, eStr: string) {
     this.buf.splice(this.point, 0, ...EditBox.killBuf)
     this.point += EditBox.killBuf.length
     this.repaint()

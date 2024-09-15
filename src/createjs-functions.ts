@@ -1,5 +1,5 @@
 import { Constructor, F } from '@thegraid/common-lib';
-import { Container, DisplayObject, Stage, Text } from '@thegraid/easeljs-module';
+import { Container, DisplayObject, MouseEvent, Stage, Text } from '@thegraid/easeljs-module';
 
 declare module "@thegraid/easeljs-module" {
   interface Container {
@@ -68,4 +68,14 @@ export async function blinkAndThen(dispObj: DisplayObject, after: () => void, dw
       after();
     }, dwell)
   });
+}
+
+/** stopPropagation and stopImmediatePropagation */
+export function stopPropagation(ev: any) {
+  const evt: MouseEvent = ev
+  const nevt = evt.nativeEvent;
+  evt.stopPropagation()
+  evt.stopImmediatePropagation();
+  nevt.preventDefault(); // ev is non-cancelable, but stop the native event...
+  nevt.stopImmediatePropagation();
 }

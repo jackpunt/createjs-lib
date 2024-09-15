@@ -1,5 +1,5 @@
 import { Container, DisplayObject, MouseEvent, Matrix2D } from '@thegraid/easeljs-module';
-import { XY, S, Obj, stime } from './index.js' //'@thegraid/createjs-lib';
+import { XY, S, Obj, stime } from '@thegraid/common-lib';
 
 export class Dragole {
   /** external injection point */

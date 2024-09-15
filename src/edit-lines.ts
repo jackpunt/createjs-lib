@@ -1,4 +1,7 @@
-import { EditBox, KeyBinder, TextStyle, textWidth, XYWH } from "./index.js";
+import { XYWH } from "@thegraid/common-lib";
+import { textWidth } from "./createjs-functions.js";
+import { EditBox, type TextStyle } from "./edit-box.js";
+import { KeyBinder, } from "./key-binder.js";
 
 /** a multi-line EditBox. with keybindings to move up/down lines */
 export class EditLines extends EditBox {
@@ -103,14 +106,14 @@ export class EditLines extends EditBox {
   }
 
   /** argVal: bol, min, max, pt */
-  override movePoint(argVal: any, eStr: string | KeyboardEvent): void {
+  override movePoint(argVal: any, eStr: string): void {
     if (argVal == 'bol') this.point = this.bol()
     else if (argVal == 'eol') this.point = this.eol()
     super.movePoint(argVal, eStr)
   }
 
   /** killLine */
-  killLine(argVal: any, eStr: string | KeyboardEvent) {
+  killLine(argVal: any, eStr: string) {
     let eol = this.eol()
     EditBox.killBuf = this.buf.splice(this.point, Math.max(1, eol - this.point))
     this.repaint()

@@ -1,5 +1,7 @@
+import { C, F, Obj, S, XY } from "@thegraid/common-lib";
 import { MouseEvent, Rectangle, Shape, Text } from "@thegraid/easeljs-module";
-import { C, ChoiceItem, ChoiceStyle, Chooser, F, NamedContainer, Obj, S, XY } from "./index.js";
+import { ChoiceItem, ChoiceStyle, Chooser, } from "./chooser.js";
+import { NamedContainer } from "./named-container.js";
 
 // https://jsfiddle.net/s1o1wswr/13/
 

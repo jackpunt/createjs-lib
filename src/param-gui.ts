@@ -1,7 +1,8 @@
-import { Container, Text } from "@thegraid/easeljs-module";
-import type { ChoiceStyle, ChoiceType, Chooser, ChooserConst } from "./index.js";
-import { DropdownButton, DropdownChoice, DropdownItem, DropdownStyle } from "./index.js";
-import { C, F, maxTextWidth, stime, TextStyle } from './index.js' //'@thegraid/createjs-lib' //
+import { F } from '@thegraid/common-lib'; //
+import { Text } from "@thegraid/easeljs-module";
+import { maxTextWidth} from "./createjs-functions"
+import { ChoiceStyle, ChoiceType, Chooser, ChooserConst } from "./chooser.js";
+import { DropdownButton, DropdownChoice, DropdownItem, DropdownStyle } from "./dropdown.js";
 import { NamedContainer } from "./named-container.js";
 
 export type ParamType = ChoiceType
