@@ -1,7 +1,7 @@
-import { type XYWH, C, className } from "@thegraid/common-lib";
+import { type XYWH, C, className, F } from "@thegraid/common-lib";
 import { type DisplayObject, Graphics, Shape, type Rectangle, type Text } from "@thegraid/easeljs-module";
 import { CenterText } from "./center-text";
-import { afterUpdate } from "./createjs-functions";
+import { afterUpdate, textWidth } from "./createjs-functions";
 import { NamedContainer } from "./named-container";
 
 export interface Paintable extends DisplayObject {
@@ -212,60 +212,75 @@ export class CircleShape extends EllipseShape {
   }
 }
 
+/** XYWH & cornerRadius & strokeSize  */
+type XYWHRS = Partial<XYWH> & { r?: number, s?: number }
 
 /** a Rectangular Shape, maybe with rounded corners */
 export class RectShape extends PaintableShape {
 
   // compare to Bounds;
   // this._bounds: Rectangle === { x, y, width, height }
-  // this._rectangle: Rectangle === { x, y, width, height }
-  _rect: XYWH;
-  _cRad = 0;
+  /** the rectangle to draw & fill */
+  _rect!: XYWH;
+  _cRad!: number;
+  _sSiz!: number;
+  strokec!: string;
 
   /**
    * Paint a rectangle (possibly with rounded corners) with fillc and stroke.
-   * @param rect \{ x=0, y=0, w=hexRad, h=hexRad, r=0 } origin, extent and corner radius of Rectangle
+   * @param rect \{ x=0, y=0, w=rad, h=rad, r=0, s=1 } origin, extent, corner radius, stroke width.
    * @param fillc [C.white] color to paint the rectangle, '' for no fill
    * @param strokec [C.black] stroke color, '' for no stroke
    * @param g0 [new Graphics()] Graphics to clone and extend during paint()
    */
   constructor(
-    { x = 0, y = 0, w = PaintableShape.defaultRadius, h = PaintableShape.defaultRadius, r = 0 }: {x?: number, y?: number, w?: number, h?: number, r?: number },
+    { x = 0, y = 0, 
+      w = PaintableShape.defaultRadius, 
+      h = PaintableShape.defaultRadius, 
+      r = 0, s = 1 }: XYWHRS,
     fillc = C.white,
-    public strokec = C.black,
+    strokec = C.black,
     g0?: Graphics,
   ) {
     super((fillc) => this.rscgf(fillc), fillc, g0);
     this._cgf = this.rscgf;     // replace ()=>{} with direct function (now that we can say 'this')
-    this._cRad = r;
-    this._rect = { x, y, w, h };
-    this.setBounds(x, y, w, h);
+    this.strokec = strokec;
+    this.setRectRad({ x, y, w, h, r, s })
     this.paint(fillc, true); // this.graphics = rscgf(...)
   }
 
-  /** update any of {x, y, w, h, r} for future paint() or setBounds(...) */
-  setRectRad({ x = this._rect.x, y = this._rect.y, w = this._rect.w, h = this._rect.h, r = this._cRad }: Partial<XYWH & { r: number }>) {
-    this._cRad = r ?? this._cRad
+  /** update any of {x, y, w, h, r, s} & setBounds(...); for future paint() */
+  setRectRad({
+    x = this._rect.x, y = this._rect.y,
+    w = this._rect.w, h = this._rect.h,
+    r = this._cRad, s = this._sSiz }: Partial<XYWHRS>) {
     this._rect = { x, y, w, h }
+    this._cRad = r;
+    this._sSiz = s;
+    this.setBounds(undefined, 0, 0, 0);
   }
 
   override setBounds(x: number | undefined | null, y: number, width: number, height: number): void {
     if (x === undefined) {
-      const b = this._rect;
-      this.setBounds(b.x, b.y, b.w, b.h) // TODO: include strokeSize, which we don't have.. being in user-supplied g0
+      const { x, y, w, h } = this._rect;
+      this.setBounds(x, y, w, h)
     } else {
       super.setBounds(x, y, width, height) // can be different from _rect
     }
   }
 
+  /** draw rectangle, maybe with rounded corner, maybe with ss & strokec */
   rscgf(fillc: string, g = this.g0) {
     const { x, y, w, h } = this._rect;
+    const ss1 = this._sSiz ?? 0, ss2 = (ss1 > 0) ? 2 * ss1 + 1 : 0;
     (fillc ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
+    if (this.strokec && (ss1 > 0)) g.ss(ss2);  // use ss only if: strokec && (ss > 0)
+    // enlarge _rect to include ss;
     if (this._cRad === 0) {
-      g.dr(x, y, w, h);
+      g.dr(x - ss1, y - ss1, w + ss2, h + ss2);
     } else {
-      g.rr(x, y, w, h, this._cRad);
+      g.rr(x - ss1, y - ss1, w + ss2, h + ss2, this._cRad);
       // note: there is also a drawRoundRectComplex(x,y,w,h,rTL,rTR,rBR,rBL)
     }
     return g;
@@ -280,13 +295,22 @@ export class RectWithDisp extends NamedContainer implements Paintable {
   /** DisplayObject displayed above a RectShape of color  */
   readonly disp: DisplayObject;
 
-  _border: number;
+  dx0 = 0
+  dx1 = 0
+  dy0 = 0
+  dy1 = 0
+
+  /** Note; call setBounds(undefined, 0, 0, 0) after adjusting dx* or dy* */ 
+  set dx(dx: number) { this.dx0 = this.dx1 = dx }
+  /** Note; call setBounds(undefined, 0, 0, 0) after adjusting dx* or dy* */ 
+  set dy(dy: number) { this.dy0 = this.dy1 = dy }
+
   /** extend RectShape around DisplayObject bounds. */
-  get border() { return this._border; }
   set border(b: number) {
-    this._border = b;
+    this.dx = this.dy = b
     this.setBounds(undefined, 0, 0, 0)
   }
+  get borders() { return [this.dx0, this.dx1, this.dy0, this.dy1] as [number, number, number, number] }
 
   _corner: number;
   /** corner radius, does not repaint/recache */
@@ -310,10 +334,11 @@ export class RectWithDisp extends NamedContainer implements Paintable {
     super('rectWithDisp');               // ISA new Container()
     if (cgf) this.rectShape._cgf = cgf;  // HasA RectShape & DisplayObject
     this.disp = disp;
-    this.border = border;
-    this.corner = corner;               // _rShape._cRad = corner
-    this.setBounds(undefined, 0, 0, 0); // calc (disp + border) -> rectShape -> this
-    this.paint(color);                  // set initial color, Graphics
+    this.corner = corner;               // rectShape._cRad = corner
+    this.border = border;               // calc & setBounds (disp + border) -> rectShape -> this
+    const rect = this.calcBounds();
+    this.rectShape.setRectRad(rect);
+    this.paint(color, true);            // set initial color, Graphics
     this.addChild(this.rectShape, this.disp);
   }
 
@@ -334,8 +359,10 @@ export class RectWithDisp extends NamedContainer implements Paintable {
    */
   calcBounds(): XYWH {
     const { x, y, width: w, height: h } = this.disp.getBounds() ?? { x: 0, y: 0, width: 10, height: 10 };
-    const db = this.border, { x: dx, y: dy } = this.disp;
-    const b = { x: dx + x - db, y: dy + y - db, w: w + 2 * db, h: h + 2 * db };
+    // disp.bounds is wrt its own origin, translate to this.origin
+    const { x: x0, y: y0 } = this.disp;
+    const [ dx0, dx1, dy0, dy1 ] = this.borders;
+    const b = { x: x0 + x - dx0, y: y0 + y - dy0, w: w + dx0 + dx1, h: h + dy0 + dy1 };
     return b;
   }
 
@@ -349,9 +376,8 @@ export class RectWithDisp extends NamedContainer implements Paintable {
       const cached = this.cacheID;
       this.uncache();
       const { x, y, w, h } = this.calcBounds();
-      this.rectShape.setRectRad({ x, y, w, h });
-      this.rectShape.setBounds(x, y, w, h); // setBounds to _rect
-      super.setBounds(x, y, w, h);
+      this.rectShape.setRectRad({ x, y, w, h }); // reshape & setBounds()
+      super.setBounds(x, y, w, h);        // save in this._bounds
       if (cached) this.cache(x, y, w, h); // recache if previously cached
     } else {
       super.setBounds(x as any as number, y, width, height);
@@ -363,16 +389,54 @@ export class RectWithDisp extends NamedContainer implements Paintable {
  *
  * Configure the border width [.3] and corner radius [0].
  */
-export class TextInRect extends RectWithDisp implements Paintable {
+export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
   declare disp: Text;
+
+  /**
+   * Create Container with Text above a RectShape.
+   * @param text label as Text or string
+   * @param options [{}] border, corner, fontSize, textColor
+   * @param cgf [tscgf] CGF for the RectShape
+   * @options
+   * * bgColor: [C.WHITE] color of background RectShape
+   * * border: [.3] extend RectShape around Text; fraction of fontSize
+   * * corner: [0] corner radius of background; fraction of fontSize
+   * * fontSize: [defaultRadius/2] if label is a string
+   * * textColor: [C.BLACK] if laabel is a string
+   */
+  constructor(label: Text | string, options: TextStyle & TextInRectOptions = {}, cgf?: CGF) {
+    const { fontSize, fontName, textColor, border, corner, bgColor } =
+      { fontSize: F.defaultSize, 
+        fontName: F.defaultFont, 
+        textColor: C.BLACK, 
+        border: .3, corner: 0, 
+        bgColor: C.WHITE,
+        ...options }
+    const text = (typeof label === 'string') ? new CenterText(label, F.fontSpec(fontSize, fontName), textColor) : label;
+    super(text, bgColor, border, corner, cgf);  // ISA new Container()
+  }
+  F_fontName(fontSpec: string) {
+    const family = fontSpec.match(/\d+px (.*)/)?.[1];
+    return family
+  }
+  get fontSize() { return F.fontSize(this.disp.font) }; 
+  get fontName() { return this.F_fontName(this.disp.font)}
+  get textWidth() { return textWidth(this.disp.text, this.fontSize, this.fontName) }
+  get textColor() { return this.disp.color ?? C.BLACK }
+  get bgColor() { return this.rectShape.colorn }
+
   /** Text object displayed above a RectShape of color */
   get label() { return this.disp; }
 
-  /** extend RectShape around Text bounds; fraction of line height. */
-  override get border() { return this._border * this.disp.getMeasuredLineHeight(); }
-  override set border(tb: number) {
-    this._border = tb;
-    this.setBounds(undefined, 0, 0, 0);
+  /** extend RectShape around Text bounds;
+   * set all borders = tb * (line height of text)
+   * @param tb fraction of line height. 
+   */
+  override set border(tb: number) { super.border = tb; }
+  override get borders() { 
+    const lh = this.disp.getMeasuredLineHeight();
+    const bb = super.borders
+    return bb.map(d => d * lh) as [number, number, number, number]
   }
 
   /** corner radius; fraction of line height. */
@@ -383,32 +447,29 @@ export class TextInRect extends RectWithDisp implements Paintable {
     const r = tr * this.disp.getMeasuredLineHeight();
     this.rectShape.setRectRad({ r })
   }
-  /** the string inside the Text label. */
+  /** the string inside the Text label. aka innerText */
   get label_text() { return this.disp.text; }
   set label_text(txt: string | undefined) {
     this.disp.text = txt as string;
     this.setBounds(undefined, 0, 0, 0)
     this.paint(undefined, true);
   }
+}
 
-  /**
-   * Create Container with Text above a RectShape.
-   * @param text label
-   * @param color [C.WHITE] of background RectShape.
-   * @param border [.3] extend RectShape around Text; fraction of fontSize
-   * @param corner [0] corner radius as fraction of fontSize
-   * @param cgf [tscgf] CGF for the RectShape
-   */
-  constructor(label: Text, color?: string, border = .3, corner = 0, cgf?: CGF) {
-    super(label, color, border, corner, cgf);  // ISA new Container()
-  }
+export type TextStyle = { 
+  fontSize?: number, 
+  fontName?: string, 
+  textColor?: string,
+  textAlign?: string, // rarely used
+}
+
+export type TextInRectOptions = {
+  bgColor?: string, 
+  border?: number,
+  corner?: number,
 }
 
 export type UtilButtonOptions = {
-  fontSize?: number,
-  textColor?: string,
-  border?: number,
-  corner?: number,
   rollover?: (mouseIn: boolean) => void,
   active?: boolean,
   visible?: boolean,
@@ -423,33 +484,32 @@ export class UtilButton extends TextInRect {
    *
    * initially visible & mouseEnabled, but deactivated.
    * @param label if not instanceof Text: new CenterText(label, fontSize, textColor)
-   * @param color [undefined = C.WHITE] of the background
    * @param options
-   * * border: [undefined = .3] for background, fraction of fontSize
-   * * corner: [undefined = 0] corner radius of background
-   * * fontSize: [PaintableShape.defaultRadius/2] if Text not supplied
-   * * textColor: [C.BLACK] if Text not supplied
+   * * bgColor: [C.WHITE] color of background RectShape
+   * * rollover: [undefined] invoked for rollover/rollout with (true/false)
    * * visible: [false] initial visibility
    * * active: [false] supply true|false to activate(active, visible) including stage?.update()
+   * * border: [.3] extend RectShape around Text; fraction of fontSize
+   * * corner: [0] corner radius of background; fraction of fontSize
+   * * fontSize: [F.defaultSize] if label is a string
+   * * textColor: [C.BLACK] if laabel is a string
    * @param cgf [tscgf] CGF for the RectShape
    */
-  constructor(label: string | Text, color?: string, options: UtilButtonOptions = {}, cgf?: CGF) {
-    const { fontSize, textColor, border, corner, rollover, active, visible } =
-      { fontSize: PaintableShape.defaultRadius / 2, textColor: C.BLACK, ...options }
-    const text = (typeof label === 'string') ? new CenterText(label, fontSize, textColor) : label;
-    super(text, color, border, corner, cgf)
-    this.rollover = rollover ?? (() => {});
+  constructor(label: string | Text, options: UtilButtonOptions & TextStyle & TextInRectOptions = {}, cgf?: CGF) {
+    const { rollover, active, visible } = options
+    super(label, options, cgf)
+    this.rollover = rollover;
 
-    this.on('rollover', () => this._active && this.rollover(true), this);
-    this.on('rollout', () => this._active && this.rollover(false), this);
+    this.on('rollover', () => this._active && this.rollover && this.rollover(true), this);
+    this.on('rollout', () => this._active && this.rollover && this.rollover(false), this);
     this.mouseEnabled = this.mouseChildren = this._active = false;
     if (active !== undefined) {
       this.activate(active, visible); // this.stage?.update()
     } else {
-      this.visible = !!options.visible;
+      this.visible = !!visible;
     }
   }
-  get fontSize() { return this.label.getMeasuredLineHeight() }
+
   /** When activated, this.rollover(mouseIn) is invoked when mouse enter/exits this button. */
   rollover: (mouseIn: boolean) => void;
   _active = false;
@@ -461,13 +521,14 @@ export class UtilButton extends TextInRect {
    * When activated: visible, mouseEnabled, enable rollover(mouseIn).
    *
    * @param active [true] false to deactivate
-   * @param visible [active] true or false to set this.visible
+   * @param vis [active] true or false to set this.visible
+   * @param update [vis !== this.visible] if true then stage.update()
    * @returns this
    */
-  activate(active = true, visible = active) {
+  activate(active = true, vis = active, update = (vis !== this.visible)) {
     this.mouseEnabled = this._active = active;
-    this.visible = visible;
-    this.stage?.update();
+    this.visible = vis;
+    update && this.stage?.update();
     return this;
   }
 

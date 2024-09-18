@@ -1,13 +1,10 @@
 import { NamedContainer } from "./named-container.js";
+import type { TextStyle } from "./paintable.js";
 
 export type ChoiceType = any;  // string | number | boolean
 export type ChoiceItem = { text: string, value: ChoiceType, fieldName?: string } // DropdownItem
-export interface ChoiceStyle {
+export interface ChoiceStyle extends TextStyle {
   fillColor?: string
-  textColor?: string
-  fontSize?: number
-  fontName?: string
-  textAlign?: string
 
   rootColor?: string
   rootTextColor?: string

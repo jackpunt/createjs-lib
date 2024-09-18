@@ -44,7 +44,7 @@ type kFunc = ((...args: any[]) => any);
 
 /** unless BindFunc returns true, then e.preventDefault() */
 export type BindFunc = (arg?: any, key?: KeyStr) => boolean | void
-export type KeyScope = { keymap?: Keymap, lastFunc?: BindFunc }
+export type KeyScope = { keymap?: Keymap, lastFunc?: BindFunc, onFocus?: (f: boolean) => void }
 /**
  * kcode is bound to Binding, invokes: func.call(scope, argVal, event) 
  */
@@ -87,6 +87,8 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
   keymap: Keymap;
   /** last BindFunc invoked from this keymap. */
   lastFunc: BindFunc
+  /** nothing special for us, but notify any listener */
+  onFocus(focus: boolean) { }
   /** GLOBAL FOCUS: a keymap bound to a KeyScope object */
   private focus: KeyScope = this; // target for localSetKey bindings (adds 'keymap' field)
 
@@ -318,9 +320,15 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     let showBind = (b: Binding) => `${this.keyCodeToString(b._kcode)}->{${b.thisArg}.${b.func.name}(${b.argVal})}`
     return (keymap as Binding[]).map(b => showBind(b))
   }
+
   /** use _keymap of the given target (or global if not supplied) */
   setFocus(target: KeyScope = this) {
+    const newFocus = (target !== this.focus)
+    if (newFocus && this.focus?.onFocus) { this.focus.onFocus(false) }
     this.focus = target
+    if (target.onFocus) { target.onFocus(true) }
+    // notify any listeners that they may have lost/gained the focus.
+    this.dispatchEvent({ type: 'Focus', focus: target })
   }
   details = false // details of event to console.log 
 
