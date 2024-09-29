@@ -62,8 +62,6 @@ type DragData = {
 
 /**
  * expect a singleton instance to control drag/drop on a single ScalableContainer
- * 
- * TODO: make instance rather than everthing static.
  */
 export class Dragger {
   /** @param  parent for this dragger.dragCont */

@@ -1,11 +1,18 @@
 import { Constructor, F } from '@thegraid/common-lib';
-import { Container, DisplayObject, MouseEvent, Stage, Text } from '@thegraid/easeljs-module';
+import { Container, DisplayObject, Event, MouseEvent, Stage, Text } from '@thegraid/easeljs-module';
 
 declare module "@thegraid/easeljs-module" {
   interface Container {
     removeChildType<T extends DisplayObject>(type: Constructor<T>, pred?: (dobj: T) => boolean ): T[];
   }
+  
+  // @types/createjs has the wrong (obsolete?) signature(s)
+  interface EventDispatcher {
+    dispatchEvent(type: string | Event | Object): boolean;
+    dispatchEvent(type: string | Event | Object, bubbles?: boolean, cancelable?: boolean): boolean;
+  }
 }
+
 Container.prototype.removeChildType = function removeChildType<T extends DisplayObject>(type: Constructor<T>, pred = (dobj: T) => true ): T[] {
   const cont = this as Container;
   const rems = cont.children.filter((c: DisplayObject) => (c instanceof type) && pred(c)) as T[];

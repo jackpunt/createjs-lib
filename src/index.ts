@@ -2,6 +2,7 @@
 export * from './center-text.js'
 export * from './chooser.js'
 export * from './createjs-functions.js'
+export * from './dispatcher.js'
 export * from './dragger.js'
 export * from './dropdown.js'
 export * from './edit-box.js'

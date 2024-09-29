@@ -1,4 +1,4 @@
-import { C, F, S, XYWH } from "@thegraid/common-lib";
+import { C, F, S } from "@thegraid/common-lib";
 import { Graphics, MouseEvent, Text } from "@thegraid/easeljs-module";
 import { stopPropagation, textWidth } from "./createjs-functions.js";
 import { Binding, KeyBinder, KeyScope } from "./key-binder.js";
@@ -11,10 +11,10 @@ import { PaintableShape, TextInRect, type TextInRectOptions, type TextStyle } fr
  * localSetKey(BS,DEL,C-A, C-K, C-W, C-Y, C-B, C-F) to edit functions...?
  */
 export class EditBox extends TextInRect implements TextStyle {
-  // TODO: find platform 'clipboard' so can cut/paste outside createjs
+  /** shared among all EditBox instances */
   static killBuf: string[] = [] // from C-k, suitable for C-y
-  // disp: Text = new Text();
-  buf: string[] = []
+
+  readonly buf: string[] = []
   point: number = 0 // buf[0..point] are before the cursor; buf[point+1..max] are after cursor
 
   // cmarks is a PaintableShape, so cmark.paint('blue') works.
@@ -37,8 +37,8 @@ export class EditBox extends TextInRect implements TextStyle {
     this.Aname = 'EditBox';
     this.setText0(this.disp.text, style)
     this.paintCursor();
-    this.initKeys()
-    this.clickToFocus()
+    this.initKeys();
+    this.clickToFocus();
   }
 
   // Note: there is also createjs.DisplayObject.cursor:
@@ -47,21 +47,22 @@ export class EditBox extends TextInRect implements TextStyle {
    * set color (and Graphics) for cursor; the mark at 'point' between chars.
    * 
    * default is a simple vertical line.
-   * @param color [BLACK] color to paint
+   * @param color [current color | BLACK] color to paint
    * @param dy [1] inset from top & bottom of edit rectangle
    * @param cgf [s(color).mt(0,dy).lt(0,fs-dy)] paint function for cursor.
    */
-  paintCursor(color = C.BLACK, dy = 1, cgf = (c: string, g = new Graphics()) => g.c().s(c).mt(0, dy).lt(0, this.fontSize - dy)) {
+  paintCursor(color?: string, dy = 1, cgf = (c: string, g = new Graphics()) => g.c().s(c).mt(0, dy).lt(0, this.fontSize - dy)) {
     this.cmark.cgf = cgf;
     this.cmark.paint(color)
-    this.cmark.setBounds(-1, 0, 1, this.fontSize + 1) // extra pixel border
-    // this.cmark.cache(-1, 0, 1, this.fontSize + 1)
+    this.cmark.setBounds(0, 0, 1, this.fontSize)
+    // this.cmark.cache(-1, 0, 2, this.fontSize + 1) // extra pixel border?
     this.addChild(this.cmark)
     this.cmark[S.Aname] = 'cursor'
   }
   // initially no keymap, lastFunc; onFocus informs if we gain/lose focus:
   keyScope: KeyScope = { onFocus: (f: boolean) => this.onFocus(f) };
 
+  /** single/simple keys selfInsert, pluse a few emacs navigation keys */
   initKeys() {
     const selfKey: RegExp = /^(\S)$/, kb = KeyBinder.keyBinder, scope = this.keyScope
     kb.setKey(selfKey, (arg, estr) => this.selfInsert(estr, estr), scope) // no argVal -> use estr
@@ -132,19 +133,23 @@ export class EditBox extends TextInRect implements TextStyle {
   /** initialize buffer contents with given text string and style. */
   setText0(text = '', style?: TextStyle) {
     const { fontSize, fontName, textColor } = {
-      fontSize: F.defaultSize,
-      fontName: F.defaultFont,
-      textColor: C.BLACK,
+      fontSize: this.fontSize ?? F.defaultSize,
+      fontName: this.fontName ?? F.defaultFont,
+      textColor: this.textColor ?? C.BLACK,
       ...style 
     };
     // disp.textBaseline: Default is 'top' [vs 'alphabetic'.. the 'line' baseline]
     this.disp.font = F.fontSpec(fontSize, fontName)
-    this.disp.color = textColor
-    this.buf = Array.from(text)
-    this.point = this.buf.length
+    this.disp.color = textColor;
+    this.splice(0, this.buf.length, ...Array.from(text));
+    this.point = this.buf.length;
+    // no implicit repaint! especially from constructor
   }
 
-  /** edit method: replace buffer contents with given text string and style; repaint() */
+  /**
+   * 
+   * edit method?: replace buffer contents with given text string and style; repaint() 
+   */
   setText(text = '', style?: TextStyle) {
     this.setText0(text, style)
     return this.repaint();
@@ -152,32 +157,43 @@ export class EditBox extends TextInRect implements TextStyle {
   /** disp.text OR buf.join('') */
   get innerText() { return this.disp.text }
   /**
+   * Primary buffer modification routine; 
    * splice into the buffer (combination delete & insert)
    * 
-   * this.buf.splice(pt, n, text); this.repaint()
+   * @example
+   * this.buf.splice(pt, n, text);
+   * this.dispactchEvent('splice');
+   * 
    * @param pt start deletion (current point)
    * @param n chars to delete (all the rest)
    * @param text string to insert ('')
    */
-  splice(pt = this.point, n = this.buf.length, text = '') {
+  splice(pt = this.point, n = this.buf.length, ...text: string[]) {
     this.buf.splice(pt, n, ...Array.from(text))
-    return this.repaint()
+    this.disp.text = this.buf.join('');
+    this.dispatchEvent(S.splice);
   }
-  /** after content change: set cursor position and stage.update() */
-  repaint(text = this.buf.join('')) {
-    // first: assume no line-wrap (see also: EditLines)
-    this.disp.text = text;      // set content to display
-    let lines = text.split('\n'), bol = 0, pt = this.point
+
+  alignCmark(text = this.disp.text, pt = this.point) {
+    let lines = text.split('\n'), bol = 0;
     // scan to find line containing cursor (pt)
     lines.forEach((line, n) => { 
       // if cursor on this line, show it in the correct place: assume textAlign='left'
       if (pt >= bol && pt <= bol + line.length) {
-        let pre = line.slice(0, pt-bol)
-        this.cmark.x = textWidth(pre, this.fontSize, this.fontName) + this.disp.x;
-        this.cmark.y = n * this.fontSize // or measuredLineHeight()?
+        const left = (this.disp.textAlign === 'left');
+        const seg = left ? line.slice(0, pt-bol) : line.slice(pt);
+        const [dx0, dx1, dy0, dy1] = this.borders;
+        const tw = textWidth(seg, this.fontSize, this.fontName);
+        this.cmark.x = this.disp.x + (left ? tw : -tw);
+        this.cmark.y = dy0 + n * this.fontSize; // or measuredLineHeight()?
       }
       bol += (line.length + 1)
     })
+  }
+  /** after content change: set cursor position and stage.update() */
+  repaint() {
+    // first: assume no line-wrap (see also: EditLines)
+    this.alignCmark(this.disp.text);
     this.stage?.update()
     return this;
   }
@@ -201,7 +217,7 @@ export class EditBox extends TextInRect implements TextStyle {
    * @param keyStr the keyCodeToString, probably from regexp
    */
   selfInsert(argVal?: string, keyStr?: string) {
-    this.buf.splice(this.point++, 0, argVal ?? keyStr as string)
+    this.splice(this.point++, 0, argVal ?? keyStr as string)
     return this.repaint()
   }
   /** selfInsert newline */
@@ -211,41 +227,47 @@ export class EditBox extends TextInRect implements TextStyle {
   /** delete char before cursor */
   delBack(argVal?: any, eStr?: string) {
     if (this.point < 1) return this;
-    this.buf.splice(--this.point, 1)
+    this.splice(--this.point, 1)
     return this.repaint()
   }
+
   delForw(argVal?: any, eStr?: string) {
     if (this.point >= this.buf.length) return this;
-    this.buf.splice(this.point, 1)
+    this.splice(this.point, 1)
     return this.repaint()
   }
   // Note: EditLines uses repeated kill(true) to accumulate into killBuf!
-  /** edit method to kill to eob, saving in killBuf */
+  /** edit method to kill to eob, saving in killBuf
+   * @param rpt [false] true to append to killBuf
+   */
   kill(pt = this.point, n = this.buf.length - pt, rpt = false) {
-    const kill = this.buf.splice(pt, n), killBuf = EditBox.killBuf;
+    const kill = this.buf.slice(pt, pt + n), killBuf = EditBox.killBuf;
     if (!rpt) killBuf.length = 0
     killBuf.splice(killBuf.length, 0, ...kill)
-    return this.repaint()
+    this.splice(pt, n);
+    return this.repaint();
   }
   /** Binding func to insert killBuf into buf at point */
   yank(argVal?: any, eStr?: string) {
-    const killBuf = EditBox.killBuf;
-    this.buf.splice(this.point, 0, ...killBuf)
+    const pt = this.point, killBuf = EditBox.killBuf;
     this.point += killBuf.length
-    return this.repaint()
+    this.splice(pt, 0, ...killBuf)
+    return this.repaint();
   }
 
   /**
    * insert text from window system clipboard: await navigator.clipboard.readText();
+   * 
+   * S.splice when complete
    * @param pt where to inject text [this.point]
    * @param n number of following chars to delete [0], if n<0 delete ALL following chars
    */
   pasteClipboard(pt = this.point, n = 0) {
     const paste = async () => {
-      let text = await navigator.clipboard.readText();
+      const text = await navigator.clipboard.readText();
       this.splice(pt, n < 0 ? undefined : n, text);
     }
-    paste();
+    return paste();
   }
 
   setBind(w: number, h: number, init?: string, focus?: Binding, blur?: Binding) {

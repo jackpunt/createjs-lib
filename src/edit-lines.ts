@@ -86,11 +86,11 @@ export class EditLines extends EditBox {
    * invokes fillDisplay(...)
    * @param text [ignored] the whole buffer text (EditLines extracts from d0; join/split)
    */
-  override repaint(text?: string) {
+  override repaint() {
     let [nl, bols] = this.countLines(this.d0, this.point), lines = this.dlines
     if (nl >= 0 && nl < this.nlines) {
       this.fillDisplay(this.d0)       // if buffer is 'dirty'
-    } else if (nl < 0) {  // TODO: if (nl > -nlines) recycle some this.lines[...] ??
+    } else if (nl < 0) {  // TODO: if (nl > -nlines) keep some this.lines[...] ??
       this.fillDisplay(this.bol(0))
     } else { // (nl >= nlines)
       this.fillDisplay(bols[nl - this.nlines]+1)
@@ -106,14 +106,13 @@ export class EditLines extends EditBox {
     kb.setKey("Enter", { thisArg: this, func: this.newline }, scope)
     kb.setKey("C-a", () => this.movePoint('bol'), scope)
     kb.setKey("C-e", () => this.movePoint('eol'), scope)
-    kb.setKey("ArrowRight", () => this.movePoint('+'), scope)
-    kb.setKey("ArrowLeft", () => this.movePoint('-'), scope)
-    // upLine & downLine rely on KeyBinder to track consecutive keyStrokes!
-    kb.setKey("ArrowUp", { thisArg: this, func: this.upLine, argVal: 1 }, scope)
-    kb.setKey("ArrowDown", { thisArg: this, func: this.downLine, argVal: 1 }, scope)
     kb.setKey("C-o", () => this.openLine(), scope)
     kb.setKey("C-k", () => this.killLine(), scope)
-    // special sequential bindings:
+    // upLine & downLine rely on KeyBinder to track consecutive keyStrokes!
+    // TODO: C-u to set repeatCount, and upLine/downLine checs that.
+    // requires a mini-mode to collect digits/sign
+    kb.setKey("ArrowUp", { thisArg: this, func: this.upLine }, scope)
+    kb.setKey("ArrowDown", { thisArg: this, func: this.downLine }, scope)
     kb.setKey("C-n", { thisArg: this, func: this.downLine }, scope)
     kb.setKey("C-p", { thisArg: this, func: this.upLine }, scope)
   }
@@ -171,14 +170,15 @@ export class EditLines extends EditBox {
     return this;
   }
 
+  /** return col0 if lastFunc was upLine or downLine, else normal current this.col */
   get keyCol() {
     return ([this.upLine, this.downLine].includes(this.keyScope.lastFunc)) ? this.col0 : this.col
   }
-  /** a Binding.func that sets col0 for repeated calls */
+  /** a Binding.func that uses/sets col0 for repeated calls */
   upLine() {
     this.linen--
-    let col = this.keyCol
-    this.col0 = col
+    let col = this.keyCol;   // may reuse this.col0
+    this.col0 = col          // assert new/same this.col0
     let bol0 = this.bol(0)
     let bol1 = this.bol(1)   //
     if (bol0 == 0) return    // nothing to do
@@ -186,7 +186,7 @@ export class EditLines extends EditBox {
     let pt = Math.min(bol1 + col, eol_1) 
     this.movePoint(pt, '')
   }
-  /** Binding.func */
+  /** Binding.func that uses/sets col0 for repeated calls  */
   downLine() {
     this.linen++
     let col = this.keyCol

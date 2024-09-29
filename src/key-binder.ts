@@ -66,7 +66,12 @@ const shiftedKeys = new Map()
 upshiftedKeys.forEach((char, n) => shiftedKeys.set(char, unshiftedKeys[n]))
 //Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZ").forEach(char => shiftedKeys.set(char, char.toLowerCase()))
 
-/** EventDispatcher with keybinding (key => thisArg.func(argVal, e)) */
+/** EventDispatcher with keybinding (key => thisArg.func(argVal, e))
+ * 
+ * dispatchEvent('Focus', new target)
+ * 
+ * Listens for keyup,keydown events from browser/window.
+ */
 export class KeyBinder extends EventDispatcher implements KeyScope {
   static keyBinder: KeyBinder;
   static instanceId = 0
@@ -121,10 +126,14 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
   }
 
   /**
+   * Parse keyStr to create KeyCode (a number, before rewrite)
+   * 
    * setting modifier values for key binding: keyup-ctrl-meta-alt-shift char 
    * x or X for shift.
    * @param keyStr "^-C-M-A-X" or "^-C-M-A-x" OR e.key/e.code(keyname)
    * @return keyCode of "X" with indicated shift-bits added in.
+   * 
+   * TODO: type KeyCode = string; KeyMap: Map<KeyCode,Binding>
    */
   getKeyCodeFromChar(keyStr: KeyStr): KeyCode {
     const UPPER = /[A-Z]/; const LOWER = /[a-z]/
@@ -171,7 +180,24 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     let rv = {key, code, keyCode, shiftKey, ctrlKey, metaKey, altKey, type: (keyup? 'keyup':'keydown')}
     return rv as unknown as KeyboardEvent
   }
-
+  //
+  // Note: we need to redo this!
+  // keycode and ASCII overlap, need to use event.code OR event.key
+  // to get the keyname; then apply CMAS to that string/name.
+  //
+  // https://www.freecodecamp.org/news/javascript-keycode-list-keypress-event-key-codes/
+  //
+  // event.code: (Digit|Numpad|Key)key(Left|Right)  
+  // named=();=,-./`[\]' )
+  // Key([A-Z])
+  // (NumPad|Digit)([0-9]|Add|Subtract|Mulitply|Divide|Decimal)
+  // (Control|Meta|Alt|Shift)(Left|Right)  Arrow(Left|Right|Up|Down)
+  //
+  // event.key is "printed representation if it has one"; b -> "b" or if Shift => "B"
+  // event.key is control or special: see table (~same as event.code?)
+  // Alt,Control, Fn, Hyper, Super, Meta, Shift, Scroll, Symbol
+  // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values
+  //
   /** get our numeric encoding of the key in the KeyboardEvent. */
   getKeyCodeFromEvent(e: KeyboardEvent): number {
     // Shift-down = 528 = 16 + 512 (because e.shiftKey is set on keydown)
@@ -190,11 +216,18 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     return keycode
   }
 
+  /**
+   * Bind (or unbind) kcode in the given keymap.
+   * @param keymap 
+   * @param kcode
+   * @param bind 
+   * @returns 
+   */
   _bindKey(keymap: Keymap, kcode: KeyCode, bind: Binding): KeyCode {
     //console.log(stime(this, "_bindKey: "), { kcode: kcode, func: bind, scope: keymap["scope"] });
     if (typeof (bind.func) == 'function') {
-      keymap[kcode] = bind
-      let {thisArg, func, argVal} = bind ; keymap[kcode] = { _kcode: kcode, thisArg, func, argVal }
+      const { thisArg, func, argVal } = bind; 
+      keymap[kcode] = { _kcode: kcode, thisArg, func, argVal }
     } else if (!!bind.func) {
       let msg = "KeyBinder.globalSetKey: unrecognized key-binding"
       this.details && console.log(stime(this, "_bindKey:"), msg, { bind })
@@ -226,6 +259,10 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     return this.globalSetKey(this.getKeyCodeFromChar(str), bind);
   }
 
+  localSetKeyFromChar(scope: KeyScope, str: KeyStr, bind: Binding) {
+    return this._bindKey(this.getKeymap(scope), this.getKeyCodeFromChar(str), bind);
+  }
+
   /**
    * Set key to invoke Binding in given KeyScope.
    * 
@@ -236,22 +273,12 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
    */
   setKey(key: number | string | RegExp, bind: Binding | kFunc, scope?: KeyScope): number | RegExp {
     // binding.func.call(binding.thisArg, binding.argVal, estr);
-    // if bind is [arrow] function, thisArg is deemed to be the KeyScope
     const binding = (typeof bind === 'function') ? { func: bind } as Binding : bind;
-    const keyScope = scope;
-    if (key instanceof RegExp) return this.localBindToRegex(keyScope, key, binding);
+    if (key instanceof RegExp) {
+      return this._bindRegex(this.getKeymap(scope), key, binding);
+    }
     if (typeof key === 'string') key = this.getKeyCodeFromChar(key);
-    return this._bindKey(this.getKeymap(keyScope), key, binding);
-  }
-
-  localSetKeyFromChar(scope: KeyScope, str: KeyStr, bind: Binding) {
-    return this._bindKey(this.getKeymap(scope), this.getKeyCodeFromChar(str), bind);
-  }
-  localBindToRegex(scope: KeyScope, regex: RegExp, bind: Binding) {
-    let keymap = this.getKeymap(scope)
-    let rv = this._bindRegex(keymap, regex, bind)
-    this.details && console.log(`localBindToRegex`, keymap, keymap.regexs, keymap.regexs[0])
-    return rv
+    return this._bindKey(this.getKeymap(scope), key, binding);
   }
 
   getKeymap(scope: KeyScope): Keymap {
@@ -285,7 +312,7 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     return this.dispatchKeyCode(this.getKeyCodeFromChar(str), str) // for ex: "^-C-M-z"
   }
   /**
-   * Dispatch based on keycode.
+   * Dispatch based on KeyCode.
    * @param kcode extracted from KeyboardEvent, or synthesized from getKeyCodeFromChar(str)
    * @param e either a KeyboardEvent with .key, or the equivalent .key string
    */
@@ -304,8 +331,9 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
       bind = rexBind?.bind
     }
     if (this.details) // TODO: maybe use console.debug()
-      console.log(stime(this, ".dispatchKeyCode:"), 
-      { keyStr, bind, kcode, keymap: this.showBindings(keymap), regexs: keymap.regexs, focus: this.focus }, e);
+      console.log(stime(this, ".dispatchKeyCode:"),
+        { keyStr, bind, kcode, keymap: this.showBindings(keymap), regexs: keymap.regexs, focus: this.focus },
+        e);
     let rv: boolean;
     if (!!bind && typeof (bind.func) == 'function') {
       const keyStr = this.keyCodeToString(kcode);
@@ -330,7 +358,8 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     // notify any listeners that they may have lost/gained the focus.
     this.dispatchEvent({ type: 'Focus', focus: target })
   }
-  details = false // details of event to console.log 
+  /** if true log details of event dispatching to console.log */
+  details = false;
 
   private initListeners() {
     this.details && console.log(stime(this, ".initListeners: keyBinder="), this);

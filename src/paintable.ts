@@ -220,8 +220,8 @@ export class RectShape extends PaintableShape {
 
   // compare to Bounds;
   // this._bounds: Rectangle === { x, y, width, height }
-  /** the rectangle to draw & fill */
-  _rect!: XYWH;
+  /** the rectangle to draw & fill; components set by setRectRad() */
+  readonly _rect: XYWH = { x: 0, y: 0, w: 10, h: 10 };
   _cRad!: number;
   _sSiz!: number;
   strokec!: string;
@@ -250,13 +250,14 @@ export class RectShape extends PaintableShape {
   }
 
   /** update any of {x, y, w, h, r, s} & setBounds(...); for future paint() */
-  setRectRad({
-    x = this._rect.x, y = this._rect.y,
-    w = this._rect.w, h = this._rect.h,
-    r = this._cRad, s = this._sSiz }: Partial<XYWHRS>) {
-    this._rect = { x, y, w, h }
-    this._cRad = r;
-    this._sSiz = s;
+  setRectRad({ x, y, w, h, r, s }: XYWHRS) {
+    const rect = this._rect;
+    (x !== undefined) && (rect.x = x);
+    (y !== undefined) && (rect.y = y);
+    (w !== undefined) && (rect.w = w);
+    (h !== undefined) && (rect.h = h);
+    (r !== undefined) && (this._cRad = r);
+    (s !== undefined) && (this._sSiz = s);
     this.setBounds(undefined, 0, 0, 0);
   }
 
@@ -272,7 +273,7 @@ export class RectShape extends PaintableShape {
   /** draw rectangle, maybe with rounded corner, maybe with ss & strokec */
   rscgf(fillc: string, g = this.g0) {
     const { x, y, w, h } = this._rect;
-    const ss1 = this._sSiz ?? 0, ss2 = (ss1 > 0) ? 2 * ss1 + 1 : 0;
+    const ss1 = (this.strokec && this._sSiz) ? this._sSiz : 0, ss2 = (ss1 > 0) ? 2 * ss1 + 1 : 0;
     (fillc ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
     if (this.strokec && (ss1 > 0)) g.ss(ss2);  // use ss only if: strokec && (ss > 0)
@@ -415,12 +416,9 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
     const text = (typeof label === 'string') ? new CenterText(label, F.fontSpec(fontSize, fontName), textColor) : label;
     super(text, bgColor, border, corner, cgf);  // ISA new Container()
   }
-  F_fontName(fontSpec: string) {
-    const family = fontSpec.match(/\d+px (.*)/)?.[1];
-    return family
-  }
+
   get fontSize() { return F.fontSize(this.disp.font) }; 
-  get fontName() { return this.F_fontName(this.disp.font)}
+  get fontName() { return F.fontName(this.disp.font) };
   get textWidth() { return textWidth(this.disp.text, this.fontSize, this.fontName) }
   get textColor() { return this.disp.color ?? C.BLACK }
   get bgColor() { return this.rectShape.colorn }

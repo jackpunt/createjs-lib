@@ -16,6 +16,7 @@ export class ValueEvent extends Event {
   }
 }
 
+// TODO: re-engineer merging with EditNumber > TextInRect
 /** Container with a Box (colored circle/ellispe/shape), a value Text, and optional label Text.
  * 
  * ValueCounter can be attached to a Container and the value updated by a ValueEvent.
