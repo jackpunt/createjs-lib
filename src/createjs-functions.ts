@@ -3,9 +3,9 @@ import { Container, DisplayObject, Event, MouseEvent, Stage, Text } from '@thegr
 
 declare module "@thegraid/easeljs-module" {
   interface Container {
-    removeChildType<T extends DisplayObject>(type: Constructor<T>, pred?: (dobj: T) => boolean ): T[];
+    removeChildType<T extends DisplayObject>(type: Constructor<T>, pred?: (dobj: T) => boolean): T[];
   }
-  
+
   // @types/createjs has the wrong (obsolete?) signature(s)
   interface EventDispatcher {
     dispatchEvent(type: string | Event | Object): boolean;

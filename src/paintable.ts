@@ -291,6 +291,30 @@ export class RectShape extends PaintableShape {
 
 /** Container with a colored RectShape behind the given DisplayObject. */
 export class RectWithDisp extends NamedContainer implements Paintable {
+
+  /**
+   * Create Container a RectShape behind the given DisplayOBject.
+   *
+   * The RectShape extends around (disp.getBounds() ?? { 0, 0, 10, 10 })
+   * @param disp a DisplayObject
+   * @param color [WHITE] of background RectShape.
+   * @param border [5] extend RectShape around disp
+   * @param corner [0] corner radius
+   * @param cgf [tscgf] CGF for the RectShape
+   */
+  constructor(disp: DisplayObject, options: RectWithDispOptions, cgf?: CGF) {
+    super('rectWithDisp');               // ISA new Container()
+    const { bgColor, border, corner } = { bgColor: C.WHITE, border: 5, corner: 0, ...options };
+    if (cgf) this.rectShape._cgf = cgf;  // HasA RectShape & DisplayObject
+    this.disp = disp;
+    this.corner = corner;               // rectShape._cRad = corner
+    this.border = border;               // calc & setBounds (disp + border) -> rectShape -> this
+    const rect = this.calcBounds();
+    this.rectShape.setRectRad(rect);
+    this.paint(bgColor, true);            // set initial color, Graphics
+    this.addChild(this.rectShape, this.disp);
+  }
+
   /** draws a RectShape around disp, with border, no strokec */
   rectShape: RectShape = new RectShape({ x: 0, y: 0, w: 8, h: 8, r: 0 }, C.WHITE, '');
   /** DisplayObject displayed above a RectShape of color  */
@@ -319,28 +343,6 @@ export class RectWithDisp extends NamedContainer implements Paintable {
   set corner(r: number) {
     this._corner = r;
     this.rectShape.setRectRad({ r })
-  }
-
-  /**
-   * Create Container a RectShape behind the given DisplayOBject.
-   *
-   * The RectShape extends around (disp.getBounds() ?? { 0, 0, 10, 10 })
-   * @param disp a DisplayObject
-   * @param color [WHITE] of background RectShape.
-   * @param border [5] extend RectShape around disp
-   * @param corner [0] corner radius
-   * @param cgf [tscgf] CGF for the RectShape
-   */
-  constructor(disp: DisplayObject, color = C.WHITE, border = 5, corner = 0, cgf?: CGF) {
-    super('rectWithDisp');               // ISA new Container()
-    if (cgf) this.rectShape._cgf = cgf;  // HasA RectShape & DisplayObject
-    this.disp = disp;
-    this.corner = corner;               // rectShape._cRad = corner
-    this.border = border;               // calc & setBounds (disp + border) -> rectShape -> this
-    const rect = this.calcBounds();
-    this.rectShape.setRectRad(rect);
-    this.paint(color, true);            // set initial color, Graphics
-    this.addChild(this.rectShape, this.disp);
   }
 
   /** RectWithDisp.paint(color) paints new color for the backing RectShape. */
@@ -405,7 +407,7 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
    * * fontSize: [defaultRadius/2] if label is a string
    * * textColor: [C.BLACK] if laabel is a string
    */
-  constructor(label: Text | string, options: TextStyle & TextInRectOptions = {}, cgf?: CGF) {
+  constructor(label: Text | string, options: TextInRectOptions = {}, cgf?: CGF) {
     const { fontSize, fontName, textColor, border, corner, bgColor } =
       { fontSize: F.defaultSize, 
         fontName: F.defaultFont, 
@@ -414,7 +416,7 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
         bgColor: C.WHITE,
         ...options }
     const text = (typeof label === 'string') ? new CenterText(label, F.fontSpec(fontSize, fontName), textColor) : label;
-    super(text, bgColor, border, corner, cgf);  // ISA new Container()
+    super(text, { bgColor, border, corner }, cgf);  // ISA new Container()
   }
 
   get fontSize() { return F.fontSize(this.disp.font) }; 
@@ -461,11 +463,14 @@ export type TextStyle = {
   textAlign?: string, // rarely used
 }
 
-export type TextInRectOptions = {
+/** RectWithDispOptions */
+export type RectWithDispOptions = {
   bgColor?: string, 
   border?: number,
   corner?: number,
 }
+
+export type TextInRectOptions = RectWithDispOptions & TextStyle;
 
 export type UtilButtonOptions = {
   rollover?: (mouseIn: boolean) => void,
@@ -493,7 +498,7 @@ export class UtilButton extends TextInRect {
    * * textColor: [C.BLACK] if laabel is a string
    * @param cgf [tscgf] CGF for the RectShape
    */
-  constructor(label: string | Text, options: UtilButtonOptions & TextStyle & TextInRectOptions = {}, cgf?: CGF) {
+  constructor(label: string | Text, options: UtilButtonOptions & TextInRectOptions = {}, cgf?: CGF) {
     const { rollover, active, visible } = options
     super(label, options, cgf)
     this.rollover = rollover;
