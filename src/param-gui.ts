@@ -1,4 +1,4 @@
-import { F } from '@thegraid/common-lib'; //
+import { F, findProtoWithPropertyName } from '@thegraid/common-lib'; //
 import { Text } from "@thegraid/easeljs-module";
 import { maxTextWidth} from "./createjs-functions"
 import { ChoiceStyle, ChoiceType, Chooser, ChooserConst } from "./chooser.js";
@@ -217,5 +217,11 @@ export class ParamGUI extends NamedContainer {
   /** update target[item.fieldname] = item.value; suitable for override */
   setValue(item: ParamItem, target = this.target): void {
     target[item.fieldName] = item.value
+  }
+
+  /** set item.value in [the super/prototype of] target [that contains item.fieldName] */
+  setInheritedValue(item: ParamItem, target = this.target): void {
+    const target0 = findProtoWithPropertyName(item.fieldName, target) ?? target;
+    this.setValue(item, target0)
   }
 }

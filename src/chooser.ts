@@ -1,3 +1,4 @@
+import { findProtoWithPropertyName } from "@thegraid/common-lib";
 import { NamedContainer } from "./named-container.js";
 import type { TextStyle } from "./paintable.js";
 
@@ -47,21 +48,4 @@ export abstract class Chooser extends NamedContainer {
    * @return false if value has not been set; call select(item) instead.
    */
   setValue(value: any, item: ChoiceItem, target?: object): boolean { return false; }
-
-  setInheritedValue(value: any, item: ChoiceItem, target?: object): boolean {
-    const findSlotInProto = (name: string, obj: Object) => {
-      if (Object.getOwnPropertyNames(obj).includes(name)) return obj;
-      const proto = Object.getPrototypeOf(obj)
-      if (proto) { 
-        return findSlotInProto(name, proto) 
-      } else { 
-        return undefined;
-      }
-    }
-    const name = item.fieldName;
-    const obj = findSlotInProto(name, target)
-    if (!obj) return false;
-    obj[name] = value;
-    return true;
-  }
 }

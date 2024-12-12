@@ -297,9 +297,10 @@ export class RectWithDisp extends NamedContainer implements Paintable {
    *
    * The RectShape extends around (disp.getBounds() ?? { 0, 0, 10, 10 })
    * @param disp a DisplayObject
-   * @param color [WHITE] of background RectShape.
-   * @param border [5] extend RectShape around disp
-   * @param corner [0] corner radius
+   * @param options
+   * * color [WHITE] of background RectShape.
+   * * border [5] extend RectShape around disp
+   * * corner [0] corner radius
    * @param cgf [tscgf] CGF for the RectShape
    */
   constructor(disp: DisplayObject, options: RectWithDispOptions, cgf?: CGF) {
