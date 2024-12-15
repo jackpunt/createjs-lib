@@ -1,40 +1,17 @@
 import { Container, DisplayObject, MouseEvent, Matrix2D } from '@thegraid/easeljs-module';
 import { XY, S, Obj, stime } from '@thegraid/common-lib';
 
-export class Dragole {
-  /** external injection point */
-  static logCount: (count: number) => void;
-  /** external injection point */
-  static logMsg: (msg: any, ...args: any[]) => void;
-  static count = 0
-  static logRate = 50;  // can modify in debugger
-  static reset(val: number = 0) { Dragole.count = val; }
-  static inc() { Dragole.count++ }
-  static logEvent(msg: string) {
-    if (typeof (Dragole.logCount) == 'function')
-      Dragole.logCount(Dragole.count)
-  }
-  /** console.log(stime(this), msg?, ...args) every n samples */
-  static log(n: number, msg?: any, ...args: any[]) {
-    Dragole.logEvent(msg);
-    if (Dragole.count % n == 0) {
-      console.log(stime(`Dragole.log`), msg, ...args);
-      if (typeof (Dragole.logMsg) == 'function')
-        Dragole.logMsg(msg, args)
-    }
-  }
-}
-
 /** Info about the current drag operation, shared between pressmove(s) and pressup. 
+ * 
  * drag context and scale info for isScaleCont
  */
 export interface DragInfo {
   first: boolean,      // true on the first drag event of this dragInfo, false thereafter
   dropCont?: Container,// if set, drop in that container, instead of srcCont
   srcCont: Container,  // original obj.parent
-  dropNdx: number,      // original index of obj in parent.children
+  dropNdx: number,     // original index of obj in parent.children
   event: MouseEvent,   // latest 'pressmove' or 'pressup' mouseevent
-  stageX0: number,      // original mouse hit: e.stageX (global coords)
+  stageX0: number,     // original mouse hit: e.stageX (global coords)
   stageY0: number,
   dxy: XY;             // original offset from mouse to regXY (local coords)
   objx: number,        // obj location on parent (drag cont or stage)
@@ -51,6 +28,11 @@ const S_stagemousemove = 'stagemousemove'
 type listener = (e: MouseEvent) => void;
 type OnHandler = Function
 type DnDFunc = (c: DisplayObject | Container, ctx?: DragInfo) => void
+/** attached to each dragable DisplayObject. scope.dragfunc()/dropfunc()
+ * 
+ * [dragInfo is set while dispObj is being dragged]
+ * [also: dragCont.getChild(1) === dispObj]
+ */
 type DragData = { 
   scope: Object,        // 'this' for dragFunc/dropFunc()
   dragfunc: DnDFunc, 
@@ -85,19 +67,19 @@ export class Dragger {
     parent.addChild(this.dragCont) // may be re-parented to the ScaleableContainer!
   }
   // mouse drag events *only* available from stage/HTMLElement layer
-  //console.log(stime(this, ".makeDragable dispObj=") ,dispObj, dragfunc, dropfunc)
   /**
-   * Compose initial DragInfo for pressmove: { first: true, srcCont, dxy, targetD, ... }
+   * Move obj to dragCont and
+   * compose initial DragInfo for pressmove: { first: true, srcCont, dxy, targetD, ... }
    * 
    * dragCont.addChild(obj); dragCont.parent.setChildIndex(dragCont, numChildren-1)
    * @param event pressmove MouseEvent (for stageXY & localXY)
    * @param obj e.currentTarget (the pressmove Listener object)
-   * @returns 
+   * @returns DragInfo with srcCont, dxy, etc 
    */
-  startDrag(event: MouseEvent, obj: DisplayObject, data: DragData) : DragInfo {
-    const srcCont: Container = obj.parent; // original parent
+  newDragInfo(event: MouseEvent, obj: DisplayObject, data: DragData) : DragInfo {
+    const srcCont = obj.parent; // original parent
     const dropNdx = srcCont.children.indexOf(obj);
-    let dragCont: Container = this.dragCont;
+    let dragCont = this.dragCont;
 
     let scalmat: Matrix2D
     let targetC: Container;
@@ -124,17 +106,17 @@ export class Dragger {
     }
     scalmat = obj.getConcatenatedMatrix()   // record original scale and offsets
     // in all cases, set data.dragInfo
-    data.dragInfo = {
+    const dragInfo = {
       dropCont: srcCont, srcCont, dropNdx, first: true,
       event, stageX0: event.stageX, stageY0: event.stageY, objx: obj.x, objy: obj.y, scalmat, dxy,
       targetC, targetD, rotation,
     } as DragInfo;
-    return data.dragInfo;
+    return dragInfo;
   }
 
   /** handle 'pressmove' event on a 'dragable' DisplayObject target */
   pressmove(event: MouseEvent, data: DragData) {
-    let { dragfunc, dragInfo: dragInfo } = data
+    let { dragfunc, dragInfo } = data
     // TODO: remove this, client to use stopDrag(), so mouse state is stable.
     if (event.target[S.doNotDrag]) return
     // not sure button check is working:
@@ -142,8 +124,8 @@ export class Dragger {
     // use currentTarget, so non-dragable Shapes pull whole ScaleableContainer
     let obj: DisplayObject | Container = event.currentTarget, stage = obj.stage;
     if (!dragInfo) {
-      Dragole.reset(-1) // *first* (next) log will trigger
-      dragInfo = this.startDrag(event, obj, data) // Also: data.dragInfo = dragInfo;
+      // set initial DragInfo into DragData:
+      dragInfo = data.dragInfo = this.newDragInfo(event, obj, data); // dragInfo.first = true;
     } else {
       dragInfo.first = false
       dragInfo.event = event
@@ -177,73 +159,70 @@ export class Dragger {
       obj.x -= dragInfo.dxy.x * obj.scaleX;       // offset by dxy
       obj.y -= dragInfo.dxy.y * obj.scaleY;
     } else {
-      Dragole.logEvent("unexpected currentTarget: " + obj.name);
       console.warn(stime(this, ".pressmove: unexpected target:"), { obj, event: event, targetC: dragInfo.targetC, targetD: dragInfo.targetC, dragInfo: Obj.fromEntriesOf(dragInfo) })
       return
     }
-    //console.log(stime(this, ".pressmove: obj.x="), obj.x, "obj.y=", obj.y, "evt_pt=", evt_pt, "\n   event=", e, "\n   obj=",obj, "\n    dragInfo=", dragInfo)
+    // invoke designated dragfunc [typically table.dragFunc]
     if (dragfunc) {
       if (((typeof dragfunc) === "function")) {
         try {
-          dragfunc.call(data.scope || obj.parent, obj, dragInfo)
+          dragfunc.call(data.scope, obj, dragInfo); // obj.parent === dragCont
         } catch (err) {
-          Dragole.logEvent("dragfunc FAILED");
           console.warn(stime(this, ".pressmove: dragfunc FAILED: "), dragfunc, "dragInfo=", Obj.fromEntriesOf(dragInfo), "\n   err=", err)
         }
       } else {
-        Dragole.logEvent("dragfunc UNKNOWN");
         console.warn(stime(this, ".pressmove: dragfunc UNKNOWN:"), dragfunc, "dragInfo=", Obj.fromEntriesOf(dragInfo))
       }
     }
     stage?.update();
   }
 
-  // a click, or end-of-drag or synthetic, from stopDrag()
+  // is (!dragging) { clickToDrag -> stagemousemove -> pressmove }
+  // else { drop (& maybe remove stagemousemove) }
   pressup(e: MouseEvent, data: DragData) {
-    let { dropfunc, dragInfo: dragInfo } = data
+    let { dropfunc, dragInfo } = data
     let obj: DisplayObject = e.currentTarget // the SC in phase-3
     data.dragInfo = undefined; // drag is done... mousebutton is up
-    data.dragStopped = false; // indicates that it *was* stopped vs undefined (never stopped)
+    data.dragStopped = false; // indicates that it *was* stopped by pressup vs undefined (never stopped)
     let stage = obj.stage
-    if (data.clickToDrag && data.stagemousemove) {
-      stage.removeEventListener(S_stagemousemove, data.stagemousemove)
-      data.stagemousemove = undefined;
-    }
     if (!dragInfo) {
-      // pressup without a dragInfo: a click; if clickToDrag convert stagemousemove to pressmove:
-      if (!!data.clickToDrag && e.nativeEvent.button === 0) {
+      // pressup without a dragInfo: a click; 
+      // if data.clickToDrag use stagemousemove to provoke pressmove()
+      if (data.clickToDrag && e.nativeEvent.button === 0) {
         // mouse is NOT down; to get 'drag' events we listen for stagemousemove:
         let stageDrag = (e: MouseEvent, data?: DragData) => {
           e.currentTarget = obj
           this.pressmove(e, data)
         }
         data.stagemousemove = stage.on(S_stagemousemove, stageDrag, this, false, data)
-        this.pressmove(e, data)  // --> data.dragInfo = this.startDrag(event, obj, data)
+        this.pressmove(e, data)  // --> data.dragInfo = this.newDragInfo(event, obj, data)
       }
       return     // a click, not a Drag+Drop
     }
-    dragInfo.event = e
+    if (data.clickToDrag && data.stagemousemove) {
+      // click to release:
+      stage.removeEventListener(S_stagemousemove, data.stagemousemove)
+      data.stagemousemove = undefined;
+    }
+    dragInfo.event = e;  // e.nativeEvent holds button, ctrl/shift keys
     e.stopPropagation()
     obj.rotation = dragInfo.rotation
-    const par = dragInfo.dropCont ?? dragInfo.srcCont, ndx = (par === dragInfo.srcCont) ? dragInfo.dropNdx : par.numChildren;
-    // last dropTarget CardContainer under the dragged Card  (or orig parent)
-    //    console.log(stime(this, ".pressup: target.name="), e.target.name, "dropfunc?", dropfunc, " dragInfo?", dragInfo, 
-    //     "\n   obj.parent=", obj.parent.name,"obj=", obj, "\n   par.name=",par.name, "(dragInfo.lastCont) par=", par,"\n   event=", e)
-    if (par) {
+    const dropCont = dragInfo.dropCont ?? dragInfo.srcCont; // user can set alt dropCont (CardContainer!)
+    const ndx = (dropCont === dragInfo.srcCont) ? dragInfo.dropNdx : dropCont.numChildren;
+    if (dropCont) {
       // Drop obj onto Parent=srcCont in apparent position:
       let inx = obj.x, iny = obj.y                    // record for debugger
-      obj.parent.localToLocal(obj.x, obj.y, par, obj)
-      // console.log(stime(this, ".pressup: obj="), obj.name, obj, "x=", obj.x, obj.parent.x, 
-      // "\n   ", par.x, "dropParent=", par.name, par, " obj_pt=", obj_pt)
-      par.addChildAt(obj, ndx); // transfer parentage from DragLayerContainer to dropTarget
+      obj.parent.localToLocal(obj.x, obj.y, dropCont, obj); // dragCont -> dropCont
+      dropCont.addChildAt(obj, ndx); // transfer parentage from dragCont to dropCont
+    } else {
+      console.warn(stime(this, `.pressup: no dropCont for`), obj);
+      obj.parent.removeChild(obj);
     }
     if (typeof dropfunc === "function") {
       try {
-        dropfunc.call(data.scope || obj.parent, obj, dragInfo);
+        dropfunc.call(data.scope ?? dropCont, obj, dragInfo); // dropCont b/c citymap...
       } catch (err) {
-        let msg = "Dragger.pressup: dragfunc FAILED="
-        console.error(msg, err)
-        alert(msg)
+        console.warn(stime(this, ".pressup: dropfunc FAILED: "), dropfunc, "dragInfo=", Obj.fromEntriesOf(dragInfo), "\n   err=", err)
       }
     }
     stage?.update();
@@ -281,11 +260,18 @@ export class Dragger {
   /**
    * Clicking on object will initiate dragging; click again to drop.
    * @param dispObj the dragable object
-   * @param value true to enable clickToDrag, false to disable;
+   * @param value [true] to enable clickToDrag, false to disable;
    */
   clickToDrag(dispObj: DisplayObject, value = true) {
     this.getDragData(dispObj).clickToDrag = value;
   }
+  /**
+   * queue a pressup event with nativeEvent = { button: 0}
+   *
+   * @param target 
+   * @param ctd [true] initiate dragging of target
+   * @returns target.DragData
+   */
   dispatchPressup(target: DisplayObject, ctd = true) {
     let dragData = this.getDragData(target)
     dragData.clickToDrag = ctd
@@ -293,7 +279,7 @@ export class Dragger {
     let mouseE = { button: 0 } as NativeMouseEvent;
     // MouseEvent with faux .nativeEvent:
     let event = new MouseEvent(S.pressup, false, true, stageX, stageY, mouseE, -1, true, stageX, stageY);
-    target.dispatchEvent(event, target) // set dragData.dragInfo = startDrag()
+    target.dispatchEvent(event, target) // set dragData.dragInfo = newDragInfo()
     return dragData
   }
   /** Move [dragable] target to mouse as if clickToDrag at {x,y}. */
@@ -301,7 +287,7 @@ export class Dragger {
     // invoke 'click' to start drag; 
     const dragData = this.dispatchPressup(target);
     // if pressup -> dragStart -> dragStop then dragInfo = undefined!
-    if (!dragData.dragInfo) return;
+    if (!dragData.dragInfo) return;  // dragStop: target does not want to be dragged
     dragData.dragInfo.dxy = dxy;
     target.parent.globalToLocal(target.stage.mouseX, target.stage.mouseY, target); // move target to mouseXY
     target.x -= dxy.x;                // offset by dxy
