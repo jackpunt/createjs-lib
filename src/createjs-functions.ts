@@ -10,6 +10,7 @@ declare module "@thegraid/easeljs-module" {
   interface EventDispatcher {
     dispatchEvent(type: string | Event | Object): boolean;
     dispatchEvent(type: string | Event | Object, bubbles?: boolean, cancelable?: boolean): boolean;
+    on(type: string, listener: (eventObj: any) => boolean, scope?: Object, once?: boolean, data?: any, useCapture?: boolean): Function;
   }
 }
 
