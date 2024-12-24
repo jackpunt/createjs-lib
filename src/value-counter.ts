@@ -91,12 +91,14 @@ export class ValueCounter extends NamedContainer {
     this.label = this.addChild(labelText);
   }
 
+  /** make a DisplayObject [Shape.ellispe] of size (high, wide) for this ValueCounter */
   protected makeBox(color: string, high: number, wide: number): DisplayObject {
     const shape: Shape = new Shape();
     shape.graphics.f(color).de(-wide/2,  -high/2, wide, high); // drawEllipse()
     return shape;
   }
 
+  /** adjust box (grow/shrink) when value does not 'fit' */
   protected newBox(wide: number, high: number) {
     // make new Shape and Size:
     this.removeAllChildren();
