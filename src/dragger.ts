@@ -155,7 +155,7 @@ export class Dragger {
       obj.x -= dragInfo.dxy.x * obj.scaleX;       // offset by dxy
       obj.y -= dragInfo.dxy.y * obj.scaleY;
     } else {
-      console.warn(stime(this, ".pressmove: unexpected target:"), { obj, event: event, targetC: dragInfo.targetC, targetD: dragInfo.targetC, dragInfo: Obj.fromEntriesOf(dragInfo) })
+      console.warn(stime(this, ".pressmove: unexpected target:"), { obj, event: event, targetC: dragInfo.targetC, targetD: dragInfo.targetC, dragInfo: { ...dragInfo } })
       return
     }
     // invoke designated dragfunc [typically table.dragFunc]
@@ -164,10 +164,10 @@ export class Dragger {
         try {
           dragfunc.call(scope, obj, dragInfo); // obj.parent === dragCont
         } catch (err) {
-          console.warn(stime(this, ".pressmove: dragfunc FAILED: "), dragfunc, "dragInfo=", Obj.fromEntriesOf(dragInfo), "\n   err=", err)
+          console.warn(stime(this, ".pressmove: dragfunc FAILED: "), dragfunc, "dragInfo=", { ...dragInfo }, "\n   err=", err)
         }
       } else {
-        console.warn(stime(this, ".pressmove: dragfunc UNKNOWN:"), dragfunc, "dragInfo=", Obj.fromEntriesOf(dragInfo))
+        console.warn(stime(this, ".pressmove: dragfunc UNKNOWN:"), dragfunc, "dragInfo=", { ...dragInfo })
       }
     }
     stage?.update();
@@ -218,7 +218,7 @@ export class Dragger {
       try {
         dropfunc.call(scope ?? dropCont, obj, dragInfo); // dropCont b/c citymap...
       } catch (err) {
-        console.warn(stime(this, ".pressup: dropfunc FAILED: "), dropfunc, "dragInfo=", Obj.fromEntriesOf(dragInfo), "\n   err=", err)
+        console.warn(stime(this, ".pressup: dropfunc FAILED: "), dropfunc, "dragInfo=", { ...dragInfo }, "\n   err=", err)
       }
     }
     stage?.update();

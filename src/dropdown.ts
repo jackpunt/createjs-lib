@@ -59,7 +59,7 @@ export class DropdownButton extends NamedContainer {
     pressdown: { x: 2, y: 2 }
   }
   // Public Members
-  style: DropdownStyle = Obj.fromEntriesOf(DropdownButton.defaultStyle);
+  style: DropdownStyle = { ...DropdownButton.defaultStyle };
   text: Text;
   fontSize: number;
   fontName: string;
@@ -83,7 +83,7 @@ export class DropdownButton extends NamedContainer {
    * @returns copy of defStyle with overrides from style
    */
   static mergeStyle(style: DropdownStyle, defStyle = DropdownButton.defaultStyle) {
-    return Obj.mergeDefaults(style, defStyle)
+    return { ...defStyle, ...style }
   }
   get arrow_c() { return this.style.arrowColor || this.style.rootTextColor || this.style.textColor }
   get arrow_r() { return this.fontSize / 2 }
@@ -102,7 +102,7 @@ export class DropdownButton extends NamedContainer {
    */
   constructor(text: string, w: number, h: number, r: number, click?:(e)=>any, style?: DropdownStyle) {
     super('DropdownButton')
-    this.style = DropdownButton.mergeStyle(style)
+    this.style = { ...DropdownButton.defaultStyle, ...style }
     // Public Methods
     this.pressed = false;
     this.hover = false;
@@ -132,7 +132,7 @@ export class DropdownButton extends NamedContainer {
     this.initText(text);
     this._arrowWidth = this.arrow_w  // 0 or ~fontSize
     if (text == "") { // indicates making the rootButton
-      this.style = Obj.fromEntriesOf(this.style) // copy & paste:
+      // upgrade this.xxxColor using style.xxxRootColor:
       this.style.fillColor = this.style.rootColor || this.style.fillColor
       this.style.fillColorOver = this.style.rootColorOver || this.style.fillColorOver
       this.style.textColor = this.style.rootTextColor || this.style.textColor

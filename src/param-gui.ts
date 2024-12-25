@@ -107,7 +107,7 @@ export class ParamGUI extends NamedContainer {
     let { name, fontSize, fontColor, fontName, onChange, target, chooser } = opts;
     target = target || this.target; // so spec *always* has a target
     let choices = this.makeChoiceItems(fieldName, valueAry); // [{text, fieldname, value}]
-    let style = DropdownButton.mergeStyle(opts.style || {}, this.defStyle);
+    let style = { ...this.defStyle, ...opts.style }
     let spec = {
       name, fieldName, choices,
       fontSize: fontSize ?? style.fontSize,
