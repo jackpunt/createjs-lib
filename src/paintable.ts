@@ -289,7 +289,13 @@ export class RectShape extends PaintableShape {
 }
 
 
-/** Container with a colored RectShape behind the given DisplayObject. */
+/** Container with a colored RectShape behind the given DisplayObject.
+ * 
+ * The RectShape extends by 'border' around the bounds of the DisplayObject.
+ * 
+ * To tweak border extents, set: .borders, .dx, .dy, .dx0, .dx1, .dy0, .dy1
+ * 
+ */
 export class RectWithDisp extends NamedContainer implements Paintable {
 
   /**
@@ -337,6 +343,12 @@ export class RectWithDisp extends NamedContainer implements Paintable {
     this.setBounds(undefined, 0, 0, 0)
   }
   get borders() { return [this.dx0, this.dx1, this.dy0, this.dy1] as [number, number, number, number] }
+  set borders(db: [number | undefined, number | undefined, number | undefined, number | undefined]) {
+    db[0] && (this.dx0 = db[0]);
+    db[1] && (this.dx1 = db[1]);
+    db[2] && (this.dy0 = db[2]);
+    db[3] && (this.dy1 = db[3]);
+  }
 
   _corner: number;
   /** corner radius, does not repaint/recache */
@@ -429,11 +441,17 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
   /** Text object displayed above a RectShape of color */
   get label() { return this.disp; }
 
-  /** extend RectShape around Text bounds;
-   * set all borders = tb * (line height of text)
+  /** extend RectShape around Text bounds, in per-LineHeight units;
+   * 
+   * sets: dx = dy = tb
+   * 
+   * actual border size will be: tb * (LineHeight of text)
    * @param tb fraction of line height. 
    */
   override set border(tb: number) { super.border = tb; }
+  /** set all the borders, in per-LineHeight units */
+  override set borders(db) { super.borders = db; }
+  /** get all the borders, in pixel units; as used by calcBounds */
   override get borders() { 
     const lh = this.disp.getMeasuredLineHeight();
     const bb = super.borders
