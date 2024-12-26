@@ -307,7 +307,7 @@ export class RectWithDisp extends NamedContainer implements Paintable {
    * * color [WHITE] of background RectShape.
    * * border [5] extend RectShape around disp
    * * corner [0] corner radius
-   * @param cgf [tscgf] CGF for the RectShape
+   * @param cgf [rscgf] CGF for the RectShape
    */
   constructor(disp: DisplayObject, options: RectWithDispOptions, cgf?: CGF) {
     super('rectWithDisp');               // ISA new Container()
@@ -412,13 +412,14 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
    * Create Container with Text above a RectShape.
    * @param text label as Text or string
    * @param options [{}] border, corner, fontSize, textColor
-   * @param cgf [tscgf] CGF for the RectShape
+   * @param cgf [rscgf] CGF for the RectShape
    * @options
    * * bgColor: [C.WHITE] color of background RectShape
    * * border: [.3] extend RectShape around Text; fraction of fontSize
    * * corner: [0] corner radius of background; fraction of fontSize
    * * fontSize: [defaultRadius/2] if label is a string
-   * * textColor: [C.BLACK] if laabel is a string
+   * * textColor: [C.BLACK] initial text.color if label is a string
+   * * textColors: [[C.BLACK, C.WHITE]] pick best contrast when paint(color); OR false
    */
   constructor(label: Text | string, options: TextInRectOptions = {}, cgf?: CGF) {
     const { fontSize, fontName, textColor, border, corner, bgColor } =
@@ -430,6 +431,22 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
         ...options }
     const text = (typeof label === 'string') ? new CenterText(label, F.fontSpec(fontSize, fontName), textColor) : label;
     super(text, { bgColor, border, corner }, cgf);  // ISA new Container()
+    this.textColors = (options.textColors === false) ? [] : (options.textColors ?? [C.black, C.white]);
+    if (this.textColors.length > 0) {
+      // wrap advice around rscgf to also select text.color:
+      const rscgf = this.rectShape.cgf
+      this.rectShape.cgf = (color: string, g: Graphics) => {
+        this.disp.color = this.pickTextColor(color);
+        return rscgf.call(this.rectShape, color, g)
+      }
+    }
+  }
+
+  textColors: string[]
+  pickTextColor(bgColor: string, textColors = this.textColors) {
+    const [maxd, maxc] = textColors.map(c => [C.dist(bgColor, c), c] as [number, string])
+      .reduce(([pd, pc], [cd, cc]) => cd > pd ? [cd, cc] : [pd, pc], [0, C.black])
+    return maxc;
   }
 
   get fontSize() { return F.fontSize(this.disp.font) }; 
@@ -489,7 +506,7 @@ export type RectWithDispOptions = {
   corner?: number,
 }
 
-export type TextInRectOptions = RectWithDispOptions & TextStyle;
+export type TextInRectOptions = RectWithDispOptions & TextStyle & { textColors?: string[] | false };
 
 export type UtilButtonOptions = {
   rollover?: (mouseIn: boolean) => void,
@@ -514,8 +531,9 @@ export class UtilButton extends TextInRect {
    * * border: [.3] extend RectShape around Text; fraction of fontSize
    * * corner: [0] corner radius of background; fraction of fontSize
    * * fontSize: [F.defaultSize] if label is a string
-   * * textColor: [C.BLACK] if laabel is a string
-   * @param cgf [tscgf] CGF for the RectShape
+   * * textColor: [C.BLACK] if label is a string
+   * * textColors: [[C.BLACK, C.WHITE]] pick best contrast when paint(color); OR false
+   * @param cgf [rscgf] CGF for the RectShape
    */
   constructor(label: string | Text, options: UtilButtonOptions & TextInRectOptions = {}, cgf?: CGF) {
     const { rollover, active, visible } = options
