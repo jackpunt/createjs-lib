@@ -137,18 +137,20 @@ export class ParamGUI extends NamedContainer {
       return { text, fieldName, value }
     })
   }
-  /** for each ParamSpec add a Chooser and Text label. */
+  /** for each ParamSpec add a Chooser and Text label.
+   * @return all the lines
+   */
   makeLines(specs: ParamSpec[] = this.specs) {
     this.specs = specs
-    specs.forEach(this.addLine, this)
-    //this.lines.forEach((line, nth) => this.addChooser(line, specs[nth].choices, nth), this)
+    return specs.map(this.addLine, this)
   }
   findLine(fieldName: string): ParamLine {
     return this.lines.find(pl => pl.spec.fieldName === fieldName)
   }
-  /** set text for the label of the indicated line/Chooser */
-  setNameText(fieldName: string, name: string = fieldName): Text {
-    const line = this.findLine(fieldName);
+  /** set text for the label of the indicated line/Chooser
+   * @return the Text
+   */
+  setNameText(fieldName: string, name: string = fieldName, line = this.findLine(fieldName)): Text {
     if (!!line.nameText) line.removeChild(line.nameText)
     const spec = line.spec
     const text = new Text(name, F.fontSpec(spec.fontSize || 32, spec.fontName), spec.fontColor)
@@ -157,15 +159,16 @@ export class ParamGUI extends NamedContainer {
     return text;
   }
   /** create ParamLine with Chooser(spec.choices) and Text label 
-   * for the nth line of this ParamGUI 
+   * as the last line of this ParamGUI
+   * @return the line
    */
-  addLine(spec: ParamSpec, nth: number) {
-    let line = new ParamLine(spec)
+  addLine(spec: ParamSpec) {
+    const line = new ParamLine(spec)
     line.y = 0
     this.lines.forEach(pl => line.y += (pl.height + this.lead)) // pre-existing lines
-    this.lines.push(line) // so nameText can findLine()
-    let text = this.setNameText(spec.fieldName, spec.name)
+    this.lines.push(line);
     this.addChild(line)
+    let text = this.setNameText(spec.fieldName, spec.name, line);
     let width = text.getMeasuredWidth()
     let height = text.getMeasuredLineHeight()
     this.linew = Math.max(this.linew, width)  // width of longest text
@@ -214,14 +217,18 @@ export class ParamGUI extends NamedContainer {
   getValue(fieldName: string, target = this.target) {
     return target[fieldName]
   }
-  /** update target[item.fieldname] = item.value; suitable for override */
+  /** update target[item.fieldname] = item.value; suitable for override 
+   * @return the value
+   */
   setValue(item: ParamItem, target = this.target): void {
-    target[item.fieldName] = item.value
+    return target[item.fieldName] = item.value
   }
 
-  /** set item.value in [the super/prototype of] target [that contains item.fieldName] */
+  /** set item.value in [the super/prototype of] target [that contains item.fieldName] 
+   * @return the value
+   */
   setInheritedValue(item: ParamItem, target = this.target): void {
     const target0 = findProtoWithPropertyName(item.fieldName, target) ?? target;
-    this.setValue(item, target0)
+    return this.setValue(item, target0)
   }
 }

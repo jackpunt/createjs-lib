@@ -5,8 +5,12 @@ import { afterUpdate, textWidth } from "./createjs-functions";
 import { NamedContainer } from "./named-container";
 
 export interface Paintable extends DisplayObject {
-  /** paint with new player color; updateCache() */
-  paint(colorn: string, force?: boolean): Graphics;
+  /**
+   * paint with given or current color; updateCache()
+   * @param colorn [current color] color to paint
+   * @param force [false] repaint even if same color.
+   */
+  paint(colorn?: string, force?: boolean): Graphics;
 
   /** Paintable can compute its own Bounds. setBounds(undefined, 0, 0, 0) */
   setBounds(x: undefined | null | number, y: number, width: number, height: number): void;
@@ -179,13 +183,18 @@ export class EllipseShape extends PaintableShape {
    * @param rady radisu in y dir
    * retain g0, to use as baseline Graphics for each paint()
    */
-  constructor(public fillc = C.white, public radx = PaintableShape.defaultRadius / 2, public rady = PaintableShape.defaultRadius / 2, public strokec = C.black, g0?: Graphics) {
-    super((fillc) => this.cscgf(fillc), strokec, g0);
-    this._cgf = this.cscgf; // overwrite to remove indirection...
+  constructor(public fillc = C.white, 
+    public radx = PaintableShape.defaultRadius / 2, 
+    public rady = PaintableShape.defaultRadius / 2, 
+    public strokec = C.black, g0?: Graphics
+  ) {
+    super((fillc) => this.escgf(fillc), strokec, g0);
+    this._cgf = this.escgf; // overwrite to remove indirection...
     this.paint(fillc);
   }
 
-  cscgf(fillc: string, g = this.g0) {
+  /** EllispseShape.cgf */
+  escgf(fillc: string, g = this.g0) {
     ((this.fillc = fillc) ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
     g.de(-this.radx, -this.rady, 2 * this.radx, 2 * this.rady);
@@ -436,7 +445,7 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
       // wrap advice around rscgf to also select text.color:
       const rscgf = this.rectShape.cgf
       this.rectShape.cgf = (color: string, g: Graphics) => {
-        this.disp.color = this.pickTextColor(color);
+        this.disp.color = C.pickTextColor(color, this.textColors);
         return rscgf.call(this.rectShape, color, g)
       }
     }
