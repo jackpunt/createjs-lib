@@ -238,8 +238,8 @@ export class Dragger {
    */
   makeDragable(target: DisplayObject,
     scope?: Object,
-    dragfunc?: ((c: DisplayObject, ctx?: DragInfo) => void),
-    dropfunc?: ((c: DisplayObject, ctx?: DragInfo) => void),
+    dragfunc?: DnDFunc,
+    dropfunc?: DnDFunc,
     isScaleCont: boolean = (target === this.dragCont.parent)): this {
 
     // on ( type, listener, [scope], [once=false], [data], [useCapture=false] )

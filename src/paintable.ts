@@ -415,7 +415,9 @@ export class RectWithDisp extends NamedContainer implements Paintable {
  * Configure the border width [.3] and corner radius [0].
  */
 export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
-  declare disp: Text;
+
+  /** Text object displayed above a RectShape of color */
+  get label() { return this.disp as Text }
 
   /**
    * Create Container with Text above a RectShape.
@@ -445,7 +447,7 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
       // wrap advice around rscgf to also select text.color:
       const rscgf = this.rectShape.cgf
       this.rectShape.cgf = (color: string, g: Graphics) => {
-        this.disp.color = C.pickTextColor(color, this.textColors);
+        this.label.color = C.pickTextColor(color, this.textColors);
         return rscgf.call(this.rectShape, color, g)
       }
     }
@@ -458,14 +460,11 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
     return maxc;
   }
 
-  get fontSize() { return F.fontSize(this.disp.font) }; 
-  get fontName() { return F.fontName(this.disp.font) };
-  get textWidth() { return textWidth(this.disp.text, this.fontSize, this.fontName) }
-  get textColor() { return this.disp.color ?? C.BLACK }
+  get fontSize() { return F.fontSize(this.label.font) }; 
+  get fontName() { return F.fontName(this.label.font) };
+  get textWidth() { return textWidth(this.label.text, this.fontSize, this.fontName) }
+  get textColor() { return this.label.color ?? C.BLACK }
   get bgColor() { return this.rectShape.colorn }
-
-  /** Text object displayed above a RectShape of color */
-  get label() { return this.disp; }
 
   /** extend RectShape around Text bounds, in per-LineHeight units;
    * 
@@ -479,7 +478,7 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
   override set borders(db) { super.borders = db; }
   /** get all the borders, in pixel units; as used by calcBounds */
   override get borders() { 
-    const lh = this.disp.getMeasuredLineHeight();
+    const lh = this.label.getMeasuredLineHeight();
     const bb = super.borders
     return bb.map(d => d * lh) as [number, number, number, number]
   }
@@ -489,13 +488,13 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
   override set corner(tr: number) {
     this._corner = tr;     // get corner() returns this unscaled value
     // but internally, _cRad is scaled by lineHeight
-    const r = tr * this.disp.getMeasuredLineHeight();
+    const r = tr * this.label.getMeasuredLineHeight();
     this.rectShape.setRectRad({ r })
   }
   /** the string inside the Text label. aka innerText */
-  get label_text() { return this.disp.text; }
+  get label_text() { return this.label.text; }
   set label_text(txt: string | undefined) {
-    this.disp.text = txt as string;
+    this.label.text = txt as string;
     this.setBounds(undefined, 0, 0, 0)
     this.paint(undefined, true);
   }

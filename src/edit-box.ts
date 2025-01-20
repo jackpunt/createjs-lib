@@ -35,7 +35,7 @@ export class EditBox extends TextInRect implements TextStyle {
     const disp = new Text(text, F.fontSpec(fontSize, fontName), textColor);
     super(disp, { border: 0, corner: 0, ...style })
     this.Aname = 'EditBox';
-    this.setText0(this.disp.text, style)
+    this.setText0(this.label.text, style)
     this.paintCursor();
     this.initKeys();
     this.clickToFocus();
@@ -139,8 +139,8 @@ export class EditBox extends TextInRect implements TextStyle {
       ...style 
     };
     // disp.textBaseline: Default is 'top' [vs 'alphabetic'.. the 'line' baseline]
-    this.disp.font = F.fontSpec(fontSize, fontName)
-    this.disp.color = textColor;
+    this.label.font = F.fontSpec(fontSize, fontName)
+    this.label.color = textColor;
     this.splice(0, this.buf.length, ...Array.from(text));
     this.point = this.buf.length;
     // no implicit repaint! especially from constructor
@@ -155,14 +155,14 @@ export class EditBox extends TextInRect implements TextStyle {
     return this.repaint();
   }
   /** disp.text OR buf.join('') */
-  get innerText() { return this.disp.text }
+  get innerText() { return this.label.text }
   /**
    * Primary buffer modification routine; 
    * splice into the buffer (combination delete & insert)
    * 
    * @example
    * this.buf.splice(pt, n, text);
-   * this.dispactchEvent('splice');
+   * this.labelactchEvent('splice');
    * 
    * @param pt start deletion (current point)
    * @param n chars to delete (all the rest)
@@ -170,21 +170,21 @@ export class EditBox extends TextInRect implements TextStyle {
    */
   splice(pt = this.point, n = this.buf.length, ...text: string[]) {
     this.buf.splice(pt, n, ...Array.from(text))
-    this.disp.text = this.buf.join('');
+    this.label.text = this.buf.join('');
     this.dispatchEvent(S.splice);
   }
 
-  alignCmark(text = this.disp.text, pt = this.point) {
+  alignCmark(text = this.label.text, pt = this.point) {
     let lines = text.split('\n'), bol = 0;
     // scan to find line containing cursor (pt)
     lines.forEach((line, n) => { 
       // if cursor on this line, show it in the correct place: assume textAlign='left'
       if (pt >= bol && pt <= bol + line.length) {
-        const left = (this.disp.textAlign === 'left');
+        const left = (this.label.textAlign === 'left');
         const seg = left ? line.slice(0, pt-bol) : line.slice(pt);
         const [dx0, dx1, dy0, dy1] = this.borders;
         const tw = textWidth(seg, this.fontSize, this.fontName);
-        this.cmark.x = this.disp.x + (left ? tw : -tw);
+        this.cmark.x = this.label.x + (left ? tw : -tw);
         this.cmark.y = dy0 + n * this.fontSize; // or measuredLineHeight()?
       }
       bol += (line.length + 1)
@@ -193,7 +193,7 @@ export class EditBox extends TextInRect implements TextStyle {
   /** after content change: set cursor position and stage.update() */
   repaint() {
     // first: assume no line-wrap (see also: EditLines)
-    this.alignCmark(this.disp.text);
+    this.alignCmark(this.label.text);
     this.stage?.update()
     return this;
   }
