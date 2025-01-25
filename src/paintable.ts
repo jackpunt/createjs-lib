@@ -26,21 +26,25 @@ export interface Paintable extends DisplayObject {
 export type CGF = (color: string, g?: Graphics) => Graphics;
 
 /**
- * Usage: ??? [obsolete?]
- * - ps = super.makeShape(); // ISA PaintableShape
- * - ps.cgf = (color) => new CGF(color);
- * - ...
- * - ps.paint(red); --> ps.graphics = gf(red) --> new CG(red);
- * -
- * - const cgf: CGF = (color: string, g = new Graphics()) => {
- * -     return g.f(this.color).dc(0, 0, rad);
- * -   }
- * - }
+ * Usage:
+ * @example
+ * class MyShape extends PaintableShape {
+ *   constructor() {
+ *     super((fillc) => this.mycgf(fillc), fillc, g0); // 'this' is allowed!
+ *     this._cgf = this.mycgf;  // without => wrapper
+ *   }
+ *   mycgf(color: string, g = this.g0) => {
+ *     return g.f(color).dc(0, 0, rad);
+ *   }
+ * }
+ * ...
+ * ms.paint(red); --> ms.graphics = g.f(red) --> new CG(red);
  */
 // The "origin story" was to create new Shapes without subclassing.
 // Just make a new PaintableShape with its CGF
 // can even compose by passing/invoking the CGF of other Shapes.
 // the tricky bit for that is finding the 'inherited' CGF;
+// capture and save before overwriting in constructor
 // maybe a known static; or constructor arg: either a CGF or a PS instance.
 export class PaintableShape extends Shape implements Paintable {
   static defaultRadius = 60;
@@ -227,9 +231,8 @@ type XYWHRS = Partial<XYWH> & { r?: number, s?: number }
 /** a Rectangular Shape, maybe with rounded corners */
 export class RectShape extends PaintableShape {
 
-  // compare to Bounds;
-  // this._bounds: Rectangle === { x, y, width, height }
-  /** the rectangle to draw & fill; components set by setRectRad() */
+  // compare to Bounds; this._bounds: Rectangle === { x, y, width, height }
+  /** the XYWH rectangle to draw & fill; components set by setRectRad() */
   readonly _rect: XYWH = { x: 0, y: 0, w: 10, h: 10 };
   _cRad!: number;
   _sSiz!: number;
@@ -237,6 +240,8 @@ export class RectShape extends PaintableShape {
 
   /**
    * Paint a rectangle (possibly with rounded corners) with fillc and stroke.
+   * 
+   * rscgf(fillc) uses rect, strokec, cRad, sSiz, g0 to paint a rectangle.
    * @param rect \{ x=0, y=0, w=rad, h=rad, r=0, s=1 } origin, extent, corner radius, stroke width.
    * @param fillc [C.white] color to paint the rectangle, '' for no fill
    * @param strokec [C.black] stroke color, '' for no stroke
@@ -258,7 +263,7 @@ export class RectShape extends PaintableShape {
     this.paint(fillc, true); // this.graphics = rscgf(...)
   }
 
-  /** update any of {x, y, w, h, r, s} & setBounds(...); for future paint() */
+  /** update any of {x, y, w, h, r, s} & setBoundsNull(); for future paint() */
   setRectRad({ x, y, w, h, r, s }: XYWHRS) {
     const rect = this._rect;
     (x !== undefined) && (rect.x = x);
@@ -326,12 +331,12 @@ export class RectWithDisp extends NamedContainer implements Paintable {
     this.corner = corner;               // rectShape._cRad = corner
     this.border = border;               // calc & setBounds (disp + border) -> rectShape -> this
     const rect = this.calcBounds();
-    this.rectShape.setRectRad(rect);
+    this.rectShape.setRectRad(rect);    // update XYWH
     this.paint(bgColor, true);            // set initial color, Graphics
     this.addChild(this.rectShape, this.disp);
   }
 
-  /** draws a RectShape around disp, with border, no strokec */
+  /** a RectShape using calcBounds[borders, disp], no strokec. */
   rectShape: RectShape = new RectShape({ x: 0, y: 0, w: 8, h: 8, r: 0 }, C.WHITE, '');
   /** DisplayObject displayed above a RectShape of color  */
   readonly disp: DisplayObject;
@@ -367,9 +372,8 @@ export class RectWithDisp extends NamedContainer implements Paintable {
     this.rectShape.setRectRad({ r })
   }
 
-  /** RectWithDisp.paint(color) paints new color for the backing RectShape. */
-  paint(color = this.rectShape.colorn, force = false ) {
-    this.rectShape.rscgf;
+  /** RectWithDisp.paint(color) paints rectShape with new color and XYWHRS. */
+  paint(color = this.rectShape.colorn, force?: boolean ) {
     return this.rectShape.paint(color, force);
   }
 
@@ -445,19 +449,22 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
     this.textColors = (options.textColors === false) ? [] : (options.textColors ?? [C.black, C.white]);
     if (this.textColors.length > 0) {
       // wrap advice around rscgf to also select text.color:
-      const rscgf = this.rectShape.cgf
-      this.rectShape.cgf = (color: string, g: Graphics) => {
-        this.label.color = C.pickTextColor(color, this.textColors);
-        return rscgf.call(this.rectShape, color, g)
-      }
+      this.alsoPickTextColor()
     }
   }
 
   textColors: string[]
-  pickTextColor(bgColor: string, textColors = this.textColors) {
-    const [maxd, maxc] = textColors.map(c => [C.dist(bgColor, c), c] as [number, string])
-      .reduce(([pd, pc], [cd, cc]) => cd > pd ? [cd, cc] : [pd, pc], [0, C.black])
-    return maxc;
+  /**
+   * Advise rectShape.cgf so textColor is updated with C.pickTextColor when paint() invokes rectShape.cgf;
+   * @param textColors [this.textColors] set/retain as this.textColors
+   * @param cgf [this.rectShape.cgf] the cgf to wrap and set as rectShape.cgf
+   */
+  alsoPickTextColor(textColors = this.textColors, cgf = this.rectShape.cgf, ) {
+    this.textColors = textColors;
+    this.rectShape.cgf = (color: string, g: Graphics) => {
+      this.label.color = C.pickTextColor(color, this.textColors);
+      return cgf.call(this.rectShape, color, g)
+    }
   }
 
   get fontSize() { return F.fontSize(this.label.font) }; 
