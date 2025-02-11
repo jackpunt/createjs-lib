@@ -226,7 +226,7 @@ export class CircleShape extends EllipseShape {
 }
 
 /** XYWH & cornerRadius & strokeSize  */
-type XYWHRS = Partial<XYWH> & { r?: number, s?: number }
+type XYWHRS = Partial<XYWH> & { r?: number, s?: number, rr?: [tl: number, tr: number, bl: number, br: number], }
 
 /** a Rectangular Shape, maybe with rounded corners */
 export class RectShape extends PaintableShape {
@@ -234,8 +234,9 @@ export class RectShape extends PaintableShape {
   // compare to Bounds; this._bounds: Rectangle === { x, y, width, height }
   /** the XYWH rectangle to draw & fill; components set by setRectRad() */
   readonly _rect: XYWH = { x: 0, y: 0, w: 10, h: 10 };
-  _cRad!: number;
-  _sSiz!: number;
+  _rr?: [tl: number, tr: number, bl: number, br: number];
+  _cRad = 0;
+  _sSiz = 1;
   strokec!: string;
 
   /**
@@ -251,7 +252,7 @@ export class RectShape extends PaintableShape {
     { x = 0, y = 0, 
       w = PaintableShape.defaultRadius, 
       h = PaintableShape.defaultRadius, 
-      r = 0, s = 1 }: XYWHRS,
+      r = 0, s = 1, rr = undefined }: XYWHRS,
     fillc = C.white,
     strokec = C.black,
     g0?: Graphics,
@@ -259,12 +260,12 @@ export class RectShape extends PaintableShape {
     super((fillc) => this.rscgf(fillc), fillc, g0);
     this._cgf = this.rscgf;     // replace ()=>{} with direct function (now that we can say 'this')
     this.strokec = strokec;
-    this.setRectRad({ x, y, w, h, r, s })
+    this.setRectRad({ x, y, w, h, r, s, rr })
     this.paint(fillc, true); // this.graphics = rscgf(...)
   }
 
   /** update any of {x, y, w, h, r, s} & setBoundsNull(); for future paint() */
-  setRectRad({ x, y, w, h, r, s }: XYWHRS) {
+  setRectRad({ x, y, w, h, r, s, rr }: XYWHRS) {
     const rect = this._rect;
     (x !== undefined) && (rect.x = x);
     (y !== undefined) && (rect.y = y);
@@ -272,30 +273,42 @@ export class RectShape extends PaintableShape {
     (h !== undefined) && (rect.h = h);
     (r !== undefined) && (this._cRad = r);
     (s !== undefined) && (this._sSiz = s);
+    (rr !== undefined) && (this._rr = rr);
     this.setBounds(undefined, 0, 0, 0);
   }
 
   override setBounds(x: number | undefined | null, y: number, width: number, height: number): void {
     if (x === undefined) {
       const { x, y, w, h } = this._rect;
-      this.setBounds(x, y, w, h)
+      // try to avoid truncation of bounding box due to later rounding:
+      // sse is _sSiz rounded up to an even integer, ss2 = sse/2
+      const ssi = this.strokec ? (Math.ceil(this._sSiz ?? 0)) : 0, ss2 = Math.ceil(ssi / 2), sse = 2 * ss2;
+      this.setBounds(x - ss2, y - ss2, w + sse, h + sse)
     } else {
       super.setBounds(x, y, width, height) // can be different from _rect
     }
   }
 
-  /** draw rectangle, maybe with rounded corner, maybe with ss & strokec */
+  /** draw rectangle, maybe with rounded corner, maybe with ss & strokec
+   * 
+   * RectShape tweaks things so the border stroke is drawn outside the given xywh rectangle.
+   * 
+   * the bounds are computed by rounding sSize up to an even int.
+   */
   rscgf(fillc: string, g = this.g0) {
     const { x, y, w, h } = this._rect;
-    const ss1 = (this.strokec && this._sSiz) ? this._sSiz : 0, ss2 = (ss1 > 0) ? 2 * ss1 + 1 : 0;
+    const ss = this.strokec ? (this._sSiz ?? 0) : 0;
     (fillc ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
-    if (this.strokec && (ss1 > 0)) g.ss(ss2);  // use ss only if: strokec && (ss > 0)
+    if (this.strokec && (ss > 0)) g.ss(ss);  // use ss only if: strokec && (ss > 0)
     // enlarge _rect to include ss;
-    if (this._cRad === 0) {
-      g.dr(x - ss1, y - ss1, w + ss2, h + ss2);
+    if (!!this._rr) {
+      const [tl, tr, br, bl] = this._rr
+      g.rc(x - ss / 2, y - ss / 2, w + ss, h + ss, tl, tr, br, bl);
+    } else if (this._cRad === 0) {
+      g.dr(x - ss / 2, y - ss / 2, w + ss, h + ss);
     } else {
-      g.rr(x - ss1, y - ss1, w + ss2, h + ss2, this._cRad);
+      g.rr(x - ss / 2, y - ss / 2, w + ss, h + ss, this._cRad);
       // note: there is also a drawRoundRectComplex(x,y,w,h,rTL,rTR,rBR,rBL)
     }
     return g;
@@ -433,8 +446,10 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
    * * border: [.3] extend RectShape around Text; fraction of fontSize
    * * corner: [0] corner radius of background; fraction of fontSize
    * * fontSize: [defaultRadius/2] if label is a string
-   * * textColor: [C.BLACK] initial text.color if label is a string
-   * * textColors: [[C.BLACK, C.WHITE]] pick best contrast when paint(color); OR false
+   * * textColor: [C.BLACK] initial text.color if label is a string (deprecated)
+   * * textColors: [[C.BLACK, C.WHITE]] pick best contrast when paint(color); OR false to retain textColor
+   * 
+   * textColor is retained when textColors == false or if paint() is not called.
    */
   constructor(label: Text | string, options: TextInRectOptions = {}, cgf?: CGF) {
     const { fontSize, fontName, textColor, border, corner, bgColor } =

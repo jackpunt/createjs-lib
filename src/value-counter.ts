@@ -1,7 +1,8 @@
 import { C, F, S, XY } from '@thegraid/common-lib';
-import { Container, DisplayObject, Event, EventDispatcher, Shape, Text } from '@thegraid/easeljs-module';
-import { CenterText } from './center-text'
+import { Container, Event, EventDispatcher, Text } from '@thegraid/easeljs-module';
+import { CenterText } from './center-text';
 import { NamedContainer } from './named-container.js';
+import { EllipseShape, type PaintableShape } from './paintable';
 
 /** send a simple value of type to target. */
 export class ValueEvent extends Event {
@@ -24,8 +25,8 @@ export class ValueEvent extends Event {
 export class ValueCounter extends NamedContainer {
   static defaultSize = 16;
   color: string;        // backgroud color
-  box: DisplayObject;
-  value: number | string;
+  box: PaintableShape;
+  _value: number | string;
   /** width of curently displayed ellipse */
   wide: number = 0; // set -1 to provoke newBox
 
@@ -50,24 +51,27 @@ export class ValueCounter extends NamedContainer {
    * @param color [C.coinGold]
    * @param fontSize [ValueCounter.defaultSize]
    * @param fontName [F.defaultFont]
-   * @param textColor [Text.defaultColor = 'BLACK']
+   * @param textColors [undefined = [C.BLACK,C.WHITE]] for C.pickTextColor(color, textColors)]
    */
-  constructor(name: string, initValue: number | string = 0, color = C.coinGold, fontSize = ValueCounter.defaultSize, fontName?: string, textColor?: string) {
+  constructor(name: string, initValue: number | string = 0, color = C.coinGold, fontSize = ValueCounter.defaultSize, fontName?: string, textColors?: string[]) {
     super(name);
     this.color = color;
     this.mouseEnabled = false;
     this.mouseChildren = false;
     this.fontSpec = F.fontSpec(fontSize, fontName);
+    this.textColors = textColors;
+    const textColor = C.pickTextColor(color, this.textColors);
     this.text = new CenterText(`${initValue}`, this.fontSpec, textColor);
-    this.setFont(fontSize, fontName, textColor);
+    this.setFont(fontSize, fontName, textColor); // explicitly the first time
     this.setValue(initValue);
   }
+  textColors?: string[];
 
   /**
    * repaint shape and text with new color/size/font.
    * Invoked by supplying extra args to setValue().
    */
-  protected setFont(fontSize = this.fontSize, fontName = this.fontName, textColor = this.text?.color ?? C.BLACK) {
+  protected setFont(fontSize = this.fontSize, fontName = this.fontName, textColor = this.text?.color) {
     this.fontSize = fontSize;
     this.fontName = fontName;
     this.fontSpec = F.fontSpec(this.fontSize, this.fontName);
@@ -92,10 +96,8 @@ export class ValueCounter extends NamedContainer {
   }
 
   /** make a DisplayObject [Shape.ellispe] of size (high, wide) for this ValueCounter */
-  protected makeBox(color: string, high: number, wide: number): DisplayObject {
-    const shape: Shape = new Shape();
-    shape.graphics.f(color).de(-wide/2,  -high/2, wide, high); // drawEllipse()
-    return shape;
+  protected makeBox(color: string, high: number, wide: number): PaintableShape {
+    return new EllipseShape(color, wide/2, high/2, '');
   }
 
   /** adjust box (grow/shrink) when value does not 'fit' */
@@ -142,25 +144,32 @@ export class ValueCounter extends NamedContainer {
     this.addChild(text); // at top of list
   }
 
+  get value() { return this._value }
+  set value(value: number | string) { 
+    this._value = value;
+    this.setBoxWithValue(value);
+  }
+
+  /** old form. @deprecated use this.value */
   getValue(): number | string {
-    return this.value;
+    return this._value;
   }
 
   /** display new value, possibly new color, fontSize, fontName, textColor */
-  setValue(value: number | string, color = this.color, fontSize = this.fontSize, fontName = this.fontName, textColor = this.text?.color ?? C.BLACK) {
-    this.value = value;
+  setValue(value = this._value, color = this.color, fontSize = this.fontSize, fontName = this.fontName, textColor?: string) {
     if (color !== this.color) {
       this.color = color;
       this.wide = -1; // force rebuild
+      textColor = textColor ?? C.pickTextColor(color)
     }
     if (fontSize !== this.fontSize || fontName !== this.fontName || textColor != this.text.color) {
       this.setFont(fontSize, fontName, textColor);
     }
-    this.setBoxWithValue(value);
+    this.value = value;
   }
 
   updateValue(value: number | string) {
-    this.setValue(value);
+    this.value = value;
     this.stage?.update();
   }
 
