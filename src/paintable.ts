@@ -435,6 +435,7 @@ export class RectWithDisp extends NamedContainer implements Paintable {
  */
 export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
 
+  declare disp: Text;
   /** Text object displayed above a RectShape of color */
   get label() { return this.disp as Text }
 
