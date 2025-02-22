@@ -24,7 +24,7 @@ Container.prototype.removeChildType = function removeChildType<T extends Display
 /** if no canvas, then disable MouseOver, DOMEvents, tick & tickChildren 
  * @param canvasId a \<canvas> Element OR the DOM ID of a \<canvas> Element (or undefined for no canvas)
  */
-export function makeStage(canvasId: string | HTMLCanvasElement, tick = true) {
+export function makeStage(canvasId?: string | HTMLCanvasElement, tick = true) {
   const stage = new Stage(canvasId);
   stage.tickOnUpdate = stage.tickChildren = tick
   if (!stage.canvas) {

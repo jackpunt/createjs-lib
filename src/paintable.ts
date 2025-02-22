@@ -369,12 +369,14 @@ export class RectWithDisp extends NamedContainer implements Paintable {
     this.dx = this.dy = b
     this.setBounds(undefined, 0, 0, 0)
   }
+  /** [dx0, dx1, dy0, dy1] are [left, right, top, bottom] margins */
   get borders() { return [this.dx0, this.dx1, this.dy0, this.dy1] as [number, number, number, number] }
+  /** setBounds(undefined, 0, 0, 0) after adjusting borders */
   set borders(db: [number | undefined, number | undefined, number | undefined, number | undefined]) {
-    db[0] && (this.dx0 = db[0]);
-    db[1] && (this.dx1 = db[1]);
-    db[2] && (this.dy0 = db[2]);
-    db[3] && (this.dy1 = db[3]);
+    db[0] !== undefined && (this.dx0 = db[0]);
+    db[1] !== undefined && (this.dx1 = db[1]);
+    db[2] !== undefined && (this.dy0 = db[2]);
+    db[3] !== undefined && (this.dy1 = db[3]);
   }
 
   _corner: number;
