@@ -193,8 +193,9 @@ export class ParamGUI extends NamedContainer {
     line.chooser = chooser
     line.addChild(chooser)
     let fieldName = line.spec.fieldName, target = line.spec.target, value = this.getValue(fieldName, target)
+    this.selectValue(fieldName, value, line) // select line with current field value;
+    // thereafter: invoke onChange when line/value changes:
     chooser.onItemChanged(!!line.spec.onChange ? line.spec.onChange : (item) => { this.setValue(item, target) })
-    this.selectValue(fieldName, value, line) // set initial value
     chooser.enable()
     return chooser
   }
