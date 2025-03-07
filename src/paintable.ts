@@ -118,17 +118,19 @@ export class PaintableShape extends Shape implements Paintable {
     return { x: 0, y: 0, w: 5, h: 5 }
   }
 
-  /** ensure PaintableShape is cached; expect setBounds() already done. */
-  setCacheID() {
+  /** ensure PaintableShape is cached; uses getBounds() ?? calcBounds(). 
+   * 
+   * @param scale [1] scale to use if cache is created
+   */
+  setCacheID(scale = 1) {
     if (this.cacheID) return;  // also: if already cached, get/setBounds is useless
     let b = this.getBounds() as Pick<Rectangle, 'x' | 'y' | 'width' | 'height'>
     if (!b) {
       const { x, y, w, h } = this.calcBounds();
       b = { x, y, width: w, height: h }
     }
-    this.cache(b.x, b.y, b.width, b.height);
+    this.cache(b.x, b.y, b.width, b.height, scale);
   }
-
 }
 
 /** an n-sided Polygon, tilted */
@@ -359,9 +361,17 @@ export class RectWithDisp extends NamedContainer implements Paintable {
   dy0 = 0
   dy1 = 0
 
-  /** Note; call setBounds(undefined, 0, 0, 0) after adjusting dx* or dy* */ 
+  /**
+   * set dx0 (left) & dx1 (right) border size.
+   * 
+   * Note: call setBounds(undefined, 0, 0, 0) after adjusting dx* or dy* 
+   */ 
   set dx(dx: number) { this.dx0 = this.dx1 = dx }
-  /** Note; call setBounds(undefined, 0, 0, 0) after adjusting dx* or dy* */ 
+  /** 
+   * set dy0 (top) & dy1 (bottom) border size.
+   * 
+   * Note: call setBounds(undefined, 0, 0, 0) after adjusting dx* or dy* 
+   */ 
   set dy(dy: number) { this.dy0 = this.dy1 = dy }
 
   /** extend RectShape around DisplayObject bounds. */
@@ -371,7 +381,11 @@ export class RectWithDisp extends NamedContainer implements Paintable {
   }
   /** [dx0, dx1, dy0, dy1] are [left, right, top, bottom] margins */
   get borders() { return [this.dx0, this.dx1, this.dy0, this.dy1] as [number, number, number, number] }
-  /** setBounds(undefined, 0, 0, 0) after adjusting borders */
+  /** 
+   * set any of [dx0, dx1, dy0, dy1]
+   * 
+   * Note: setBounds(undefined, 0, 0, 0) after adjusting borders 
+   */
   set borders(db: [number | undefined, number | undefined, number | undefined, number | undefined]) {
     db[0] !== undefined && (this.dx0 = db[0]);
     db[1] !== undefined && (this.dx1 = db[1]);

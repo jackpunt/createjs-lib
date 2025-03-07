@@ -15,7 +15,13 @@ export class NamedContainer extends Container implements NamedObject {
     this.x = cx; this.y = cy;
   }
 
-  /** because @types/createjs.d.ts does not include the (null, 0 ,0, 0) signature */
+  /** 
+   * Set bounds(null, 0, 0, 0) to remove saved bounds.
+   * 
+   * @types/createjs.d.ts does not include the (null, 0, 0, 0) signature 
+   * 
+   * Note: use setBounds(undefined, 0, 0, 0) for RectShape to calcBounds() with borders.
+   */
   setBoundsNull(): void {
     super.setBounds(null as any as number, 0, 0, 0);
   }

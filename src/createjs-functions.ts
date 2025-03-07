@@ -50,13 +50,22 @@ export function maxTextWidth(items: (string | { text: string })[], font_h: numbe
 }
 
 /**
- * stage.update() then after 'drawend' on stage run afterFunc()
+ * dispObj.stage.update(); on 'drawend' run afterFunc()
+ * 
+ * Uses setTimeout(afterFunc, andWait) so browser can repaint,
+ * and afterFunc will run in new task (vs the event dispatch)
+ *
+ * If (andWait === false) do NOT setTimeout.
  * @param dispObj any DisplayObject to find the stage.
- * @param afterFunc if supplied, invoke after stage updates.
- * @param scope thisArg for afterFunc
+ * @param afterFunc [] if supplied, invoke after stage updates.
+ * @param scope [] thisArg for afterFunc
+ * @param andWait [10] number then setTimeout(afterFunc, andWait)
  */
-export function afterUpdate(dispObj: DisplayObject, afterFunc?: () => void, scope?: any) {
-  afterFunc && dispObj.stage.on('drawend', afterFunc, scope, true);
+export function afterUpdate(dispObj: DisplayObject, afterFunc?: () => void, scope?: any, andWait: false | number = 10) {
+  const listnr = (afterFunc && andWait !== false)
+    ? () => setTimeout(afterFunc, andWait)
+    : afterFunc;
+  listnr && dispObj.stage.on('drawend', listnr, scope, true);
   dispObj.stage.update();
 }
 
