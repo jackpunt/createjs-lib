@@ -11,18 +11,18 @@ export type GridSpec = {
   height: number, // canvas size
   nrow: number,
   ncol: number,
-  /** top margin 'indent' */
+  /** top margin 'indent' to center of card */
   y0: number,
-  /** even row indent [required] */
+  /** even row indent to center of card [required] */
   x0: number,    // even numbered line indent
   /** odd row indent [x0] used for hex-packed templates */
   x1?: number,    // odd numbered line indent [x1 ?? x0]
   /** offset per column: cardw + icg; with dely --> landscape vs portrait */
   delx: number,   // offset per column
   dely: number,   // offset per row
-  /** cut size of card image on template [delx]; */
+  /** cut size of card image on template (blue lines) [cardw <= delx]; */
   cardw?: number,
-  /** cut size of card image on template [dely]; */
+  /** cut size of card image on template (blue lines) [cardh <= dely]; */
   cardh?: number,
   /** amount to extend card image beyond cardw & cardh; (typically: .1 inch, 25-30 mm) */
   bleed?: number,
