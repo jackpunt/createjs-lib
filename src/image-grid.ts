@@ -131,6 +131,11 @@ export class ImageGrid {
     canvasDiv.style.setProperty('scale', nScale);
   }
 
+  setScale(newScale?: string) {
+    const canvasDiv = document.getElementById('canvasDiv') as HTMLCanvasElement;
+    canvasDiv.style.setProperty('scale', newScale);
+  }
+
   setStageAndCanvas(wh: WH, canvasId: string | HTMLCanvasElement = 'gridCanvas', scale = .25) {
     if (typeof canvasId === 'string') {
       this.canvas = (document.getElementById(canvasId) ?? document.createElement('canvas')) as HTMLCanvasElement;
