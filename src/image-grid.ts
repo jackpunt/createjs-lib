@@ -84,6 +84,7 @@ export class ImageGrid {
     delx: 375, dely: 375,  // ; 2625/7 = 375 ; 1876/5 = 375.2
     dpi: 1, double: true,
   }
+    // Note: 1108 = 1050 + 2 * (bleed-1); 808 = 750 + 2 * (bleed-1)
     // (define PPG-POKER-18-SPEC '((file "PPGPoker18-0.png") (cardw 1108) (cardh 808)
     // (xmin 120) (ymin 85) (xinc 1125) (yinc 825)
     // (ncol 3) (nrow 6) (bleed 25)))
