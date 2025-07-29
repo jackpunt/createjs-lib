@@ -1,12 +1,44 @@
 import { Constructor, stime } from "@thegraid/common-lib";
 import { Container, DisplayObject } from "@thegraid/easeljs-module";
 import { ImageGrid, PageSpec, type GridSpec } from "./image-grid";
+import { NamedContainer } from "./named-container";
+import { RectShape, type Paintable } from "./paintable";
 // end imports
 
 
-/** "Tile" in this case is any DisplayObject with a makeBleed() */
-interface Tile extends DisplayObject {
-  makeBleed(bleed: number): DisplayObject;
+/** An exportable "Tile"; implemented by CardObject. */
+export interface Tile extends DisplayObject {
+  makeShape(size?: number): Paintable;
+  makeBleed(bleed?: number): DisplayObject;
+}
+
+/**
+ * Basic implementation, with RectShape. Example of use for TileExporter.
+ */
+export class TileImpl extends NamedContainer implements Tile  {
+
+  /** RectShape; override to make any Paintable */
+  makeShape(size = 100): Paintable {
+    return new RectShape({ x: 0, y: 0, w: size, h: size });
+  }
+
+  /** For TileExporter. base implementation: scale up from this.makeShape() 
+   * 
+   * Override to suit
+   * @param bleed size of bleed to add, typically from GridSpec.bleed (0)
+   */
+  makeBleed(bleed = 0, bleedColor = 'white'): Paintable {
+    const bleedShape = this.makeShape(); // expect a RoundedRect/CardShape or TileShape/HexShape 
+    bleedShape.rotation = this.rotation;
+    const { x, y, width, height } = bleedShape.getBounds()
+    bleedShape.scaleX = (width + 2 * bleed) / width;
+    bleedShape.scaleY = (height + 2 * bleed) / height;
+    // bleedShape.x -= bleed; // override if makeShape() is not centered
+    // bleedShape.y -= bleed; // to align bleedShape with baseShape
+    // with bounds: { x - bleed, y - bleed, width+2*bleed, height+2*bleed }
+    bleedShape.paint(bleedColor, true);
+    return bleedShape;
+  }
 }
 
 /**
@@ -56,7 +88,7 @@ export class TileExporter {
   }
 
   /**
-   * Make outer bleed for the given tile. Trim bounds of on L or R edge
+   * Make outer bleed for the given tile. Trim bounds if on L or R edge
    */
   makeBleed(tile: Tile, gridSpec: GridSpec, back: boolean, edge: 'L' | 'R' | 'C' = 'C') {
     const bleed = gridSpec.bleed ?? 0;
@@ -72,13 +104,19 @@ export class TileExporter {
     return bleedShape;
   }
 
-  /** each PageSpec will identify the canvas that contains the Tile-Images */
+  /**
+   * Append to pageSpecs; 
+   * each PageSpec will contain the CanvasElement filled with Tile-Images (frontObjs & backObjs)
+   * 
+   * @return the given PageSpec[] extendd to hold the new pages
+   */
   clazToTemplate(countClaz: CountClaz[], gridSpec = ImageGrid.hexDouble_1_19, pageSpecs: PageSpec[] = []) {
     const frontAry = [] as DisplayObject[][];
     const backAry = [] as (DisplayObject[] | undefined)[];
     const page = pageSpecs.length, double = gridSpec.double ?? true;
     const { nrow, ncol } = gridSpec, perPage = nrow * ncol;
     let nt = page * perPage;
+    // composeTile for each frontObj (and matching backObj) in proper orientation.
     countClaz.forEach(([count, claz, ...args]) => {
       const nreps = Math.abs(count);
       for (let i = 0; i < nreps; i++) {
@@ -99,11 +137,12 @@ export class TileExporter {
         }
       }
     });
+    // loop to generate series of pageSpec(canvas) to hold the given frontObjs (& backObjs if double)
     frontAry.forEach((ary, pagen) => {
       const frontObjs = frontAry[pagen], backObjs = double ? backAry[pagen] : undefined;
       const canvasId = `canvas_P${pagen}`;
       const pageSpec = { gridSpec, frontObjs, backObjs };
-      pageSpecs[pagen] = pageSpec;
+      pageSpecs[pagen] = pageSpec; // append new pageSpec to pageSpecs[]
       console.log(stime(this, `.makePage: canvasId=${canvasId}, pageSpec=`), pageSpec);
       this.imageGrid.makePage(pageSpec, canvasId);  // make canvas with images, but do not download [yet]
     })

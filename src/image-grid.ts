@@ -156,6 +156,18 @@ export class ImageGrid {
     this.canvas.height = wh.height;
   }
 
+  /** 
+   * Make a single page image, injecting the canvas into given pageSpec.
+   * 
+   * Make a Stage on canvas (maybe create from canvasId); 
+   * fill background then place objects using gridSpec.
+   * 
+   * Set pageSpec.canvas with completed HTMLCanvasElement.
+   * 
+   * @param pageSpec \{ gridSpec, frontObjs, backObjs? }
+   * @param canvas a Canvas or canvasId
+   * @returns (pageSpec.canvas holding the page image)
+   */
   makePage(pageSpec: PageSpec, canvas?: HTMLCanvasElement | string ) {
     const gridSpec = pageSpec.gridSpec, { bgColor, scale } = gridSpec;
     const width = gridSpec.width * (gridSpec.dpi ?? 1);
@@ -175,6 +187,10 @@ export class ImageGrid {
     return;
   }
 
+  /** place objects (front & back) on stage, filling rows by column, until nrows filled. 
+   * 
+   * @returns number of child ojects added
+   */
   addObjects(gridSpec: GridSpec, frontObjs: DisplayObject[], backObjs: (DisplayObject | undefined)[] | undefined) {
     const cont = new Container();
     const def = { x0: 0, y0: 0, delx: 300, dely: 300, dpi: 1 }
