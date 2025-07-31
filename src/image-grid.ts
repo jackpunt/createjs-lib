@@ -239,15 +239,15 @@ export class ImageGrid {
       // console.log(stime(this, `.downloadClick: ${canvasId} -> ${filename}`))
       this.downloadImage(canvas, filename);
       const next = `${(downClick < pageSpecs.length) ? baseName(downClick): 'done'}`
-      this.setAnchorClick('download', `Download-${next}`);
+      this.setAnchorClick('download', `Download ${next}`);
     }
 
     const setDownload = (n: number) => {
       downClick = n;
-      this.setAnchorClick('download', `Download-${baseName(downClick)}`, (ev) => {
+      this.setAnchorClick('download', `Download ${baseName(downClick)}`, (ev) => {
         if (downClick >= pageSpecs.length) {
           this.addCanvas(undefined);
-          this.setAnchorClick('download', 'Download-done', 'stop');
+          this.setAnchorClick('download', 'Download done', 'stop');
           return;
         }
         downloadPage(downClick++);
@@ -264,17 +264,17 @@ export class ImageGrid {
       this.addCanvas(canvas);
       viewClick = n + 1;
       const next = `${(viewClick < pageSpecs.length) ? `P${viewClick}`: 'done'}`
-      this.setAnchorClick('viewPage', `ViewPage-${next}`, () => {
+      this.setAnchorClick('viewPage', `View Next: ${next}`, () => {
         if (viewClick < pageSpecs.length) {
           viewPage();
         } else {
           this.addCanvas(undefined);
-          this.setAnchorClick('viewPage', 'ViewPage-done', 'stop');
+          this.setAnchorClick('viewPage', 'View Next: done', 'stop');
         }
       })
     }
 
-    this.setAnchorClick('viewPage0', 'ViewPage-P0', () => viewPage(viewClick = 0));
+    this.setAnchorClick('viewPage0', 'View P0', () => viewPage(viewClick = 0));
     viewPage(viewClick = 0);   // includes: setDownload(0);
     return;
   }
