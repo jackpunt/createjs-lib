@@ -227,26 +227,37 @@ export class ImageGrid {
   }
 
   downloadPageSpecs(pageSpecs: PageSpec[]) {
-    let downClick = 0;
-    this.setAnchorClick('download', `Download-P${downClick}`, (ev) => {
-      if (downClick >= pageSpecs.length) {
-        this.addCanvas(undefined);
-        this.setAnchorClick('download', 'Download-done', 'stop');
-        return;
-      }
-      const n = downClick++;
+    const baseName = (n=0) => `P${n}${pageSpecs[n].basename ? `_${pageSpecs[n].basename}` : ''}`;
+
+    // step thru downloading each canvas.toDataURL() image:
+    let downClick = 0;             // next image to download
+    const downloadPage = (n: number) => {
       const pageSpec = pageSpecs[n];
       const canvas = pageSpec.canvas as HTMLCanvasElement;
-      const baseName = `${pageSpec.basename ?? 'image'}_${stime.fs("MM-DD_kk_mm_ssL")}`
-      const filename = `${baseName}_P${n}.png`;
+      const base = baseName(n);
+      const filename = `${base}@${stime.fs("MM-DD_kk_mm_ssL")}.png`;
       // console.log(stime(this, `.downloadClick: ${canvasId} -> ${filename}`))
       this.downloadImage(canvas, filename);
-      const next = `${(downClick < pageSpecs.length) ? `P${downClick}`: 'done'}`
+      const next = `${(downClick < pageSpecs.length) ? baseName(downClick): 'done'}`
       this.setAnchorClick('download', `Download-${next}`);
-    });
+    }
 
+    const setDownload = (n: number) => {
+      downClick = n;
+      this.setAnchorClick('download', `Download-${baseName(downClick)}`, (ev) => {
+        if (downClick >= pageSpecs.length) {
+          this.addCanvas(undefined);
+          this.setAnchorClick('download', 'Download-done', 'stop');
+          return;
+        }
+        downloadPage(downClick++);
+      });
+    }
+
+    // step thru viewing each canvas/image:
     let viewClick = 0;
     const viewPage = (n = viewClick) => {
+      setDownload(n);        // "what you see is what you get"
       const pageSpec = pageSpecs[n];
       const canvas = pageSpec.canvas as HTMLCanvasElement;
       canvas.style.border = "2px solid";
@@ -262,10 +273,9 @@ export class ImageGrid {
         }
       })
     }
-    this.setAnchorClick('viewPage0', 'ViewPage0', () => {
-      viewPage(viewClick = 0)
-    })
-    viewPage(viewClick = 0)
+
+    this.setAnchorClick('viewPage0', 'ViewPage-P0', () => viewPage(viewClick = 0));
+    viewPage(viewClick = 0);   // includes: setDownload(0);
     return;
   }
 
