@@ -84,6 +84,13 @@ export class ImageGrid {
     delx: 375, dely: 375,  // ; 2625/7 = 375 ; 1876/5 = 375.2
     dpi: 1, double: true,
   }
+
+  // x0 = pixel margin + bleed + width/2
+  static euroPoker: GridSpec = {
+    width: 3600, height: 5400, nrow: 6, ncol: 3, cardw: 1040, cardh: 734, double: false,
+    x0: 158 + 30 + 1040/2, y0: 320 + 30 + 734/2, delx: 1122.5, dely: 803, bleed: 30,
+  }
+
     // Note: 1108 = 1050 + 2 * (bleed-1); 808 = 750 + 2 * (bleed-1)
     // (define PPG-POKER-18-SPEC '((file "PPGPoker18-0.png") (cardw 1108) (cardh 808)
     // (xmin 120) (ymin 85) (xinc 1125) (yinc 825)
