@@ -113,33 +113,37 @@ export class TileExporter {
   clazToTemplate(countClaz: CountClaz[], gridSpec = ImageGrid.hexDouble_1_19, pageSpecs: PageSpec[] = []) {
     const frontAry = [] as DisplayObject[][];
     const backAry = [] as (DisplayObject[] | undefined)[];
-    const page = pageSpecs.length, double = gridSpec.double ?? true;
     const { nrow, ncol } = gridSpec, perPage = nrow * ncol;
+    const double = gridSpec.double ?? true, split = gridSpec.split;
+    const splitn = Math.ceil(perPage / 2); 
+    const page = pageSpecs.length;
     let nt = page * perPage;
     // composeTile for each frontObj (and matching backObj) in proper orientation.
     countClaz.forEach(([count, claz, ...args]) => {
       const nreps = Math.abs(count);
       for (let i = 0; i < nreps; i++) {
         const n = nt % perPage, pagen = Math.floor(nt++ / perPage);
-        if (!frontAry[pagen]) frontAry[pagen] = [];
         const col = n % ncol, lcr = (col === 0) ? 'L' : (col === ncol - 1) ? 'R' : 'C';
         const frontTile = this.composeTile(claz, args, gridSpec, false, lcr);
-        frontAry[pagen].push(frontTile);
+        const frontAryPagen = frontAry[pagen] ?? (frontAry[pagen] = []);
+        frontAryPagen.push(frontTile);
         if (double) {
-          const backAryPagen = backAry[pagen] ?? (backAry[pagen] = []) as (DisplayObject | undefined)[];
           let backTile = undefined;
           if (claz.rotateBack !== undefined) {
             backTile = this.composeTile(claz, args, gridSpec, true, lcr);
             const tile = backTile.getChildAt(1); // [bleed, tile]
             tile.rotation = claz.rotateBack;
           }
+          const backAryPagen = backAry[pagen] ?? (backAry[pagen] = []);
           backAryPagen.push(backTile);
         }
       }
     });
     // loop to generate series of pageSpec(canvas) to hold the given frontObjs (& backObjs if double)
-    frontAry.forEach((ary, pagen) => {
-      const frontObjs = frontAry[pagen], backObjs = double ? backAry[pagen] : undefined;
+    frontAry.forEach((aryFront, pagen) => {
+      const aryBack = backAry[pagen];
+      const frontObjs = split ? aryFront.slice(0, splitn) : aryFront; 
+      const backObjs = double ? aryBack : split ? aryFront.slice(splitn) : undefined;
       const canvasId = `canvas_P${pagen}`;
       const pageSpec = { gridSpec, frontObjs, backObjs };
       pageSpecs[pagen] = pageSpec; // append new pageSpec to pageSpecs[]

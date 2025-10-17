@@ -236,13 +236,18 @@ export class RectShape extends PaintableShape {
   // compare to Bounds; this._bounds: Rectangle === { x, y, width, height }
   /** the XYWH rectangle to draw & fill; components set by setRectRad() */
   readonly _rect: XYWH = { x: 0, y: 0, w: 10, h: 10 };
+  /** complex RoundedRect, each corner can be different */
   _rr?: [tl: number, tr: number, bl: number, br: number];
-  _cRad = 0;
+  /** _cRad used if _rr is undefined  */
+  _cRad = 0; 
+  /** stroke size. For no stroke use strokec = ''; ({ s: 0 } is not effective) */
   _sSiz = 1;
   strokec!: string;
 
   /**
    * Paint a rectangle (possibly with rounded corners) with fillc and stroke.
+   * 
+   * corner radius: rr = [tl, tr, br, bl] OR r = radius for all 4
    * 
    * rscgf(fillc) uses rect, strokec, cRad, sSiz, g0 to paint a rectangle.
    * @param rect \{ x=0, y=0, w=rad, h=rad, r=0, s=1 } origin, extent, corner radius, stroke width.

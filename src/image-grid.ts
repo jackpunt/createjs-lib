@@ -30,8 +30,10 @@ export type GridSpec = {
   trimLCR?: boolean,
   /** [1: already in pixels] scale factor for [x0/x1, y0, delx, dely] --> pixels */
   dpi?: number,
-  /** true if template includes slots for double-sided images */
+  /** true if template includes slots for double-sided images [symetric from bottom] */
   double?: boolean,
+  /** true to split images into frontAry & backAry (for mini-card double/split template) */
+  split?:  boolean,
   /** set true or false to override orientation derived from delx/dely */
   land?: boolean,
   /** if defined, paint a bg RectShape behind the ImageGrid */
@@ -103,11 +105,21 @@ export class ImageGrid {
   // (define PPG-MINI-36-SPEC '((file "PPGMiniCard36-0.png") (cardw 800) (cardh 575)
 	// (xmin 150) (ymin 100) (xinc 833) (yinc 578.25)
 	// (over 1) (bleed 25) (xlim 3600) (ylim 5400))
-  static cardSingle_1_75: GridSpec = {
+  static cardSingle_1_75X: GridSpec = {
     width: 3600, height: 5400, nrow: 9, ncol: 4, cardw: 750, cardh: 525, double: false,
     x0: 258 + 1.75 * 150 + 30, y0: 96 + 1.75 * 150 + 30, delx: 833, dely: 578.25, bleed: 25,
   };
+  /** new PPG mini-card portrait, split */
+  static cardSingle_1_75: GridSpec = {
+    width: 3600, height: 5400, nrow: 6, ncol: 5, cardh: 525, cardw: 750, double: false, split: true,
+    x0: 334 + 1.75 * 150   , y0: 150 + 2.5 * 150, delx: 600, dely: 825, bleed: 30,  // (2705-305)/4, (1770-120)/2
+  } as GridSpec;
 
+  /** new PPG mini-card portrait */
+  static cardDouble_1_75: GridSpec = {
+    width: 3600, height: 5400, nrow: 3, ncol: 5, cardh: 525, cardw: 750, double: true,
+    x0: 334 + 1.75 * 150   , y0: 150 + 2.5 * 150, delx: 600, dely: 825, bleed: 30,  // (2705-305)/4, (1770-120)/2
+  }
   stage!: Stage;
   canvas!: HTMLCanvasElement;
 
