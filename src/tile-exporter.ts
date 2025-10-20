@@ -104,20 +104,42 @@ export class TileExporter {
     return bleedShape;
   }
 
+  /** defered page to continue filling */
+  openSpec?: PageSpec = undefined;
+  openNt = 0;
+
   /**
    * Append to pageSpecs; 
    * each PageSpec will contain the CanvasElement filled with Tile-Images (frontObjs & backObjs)
    * 
-   * @return the given PageSpec[] extendd to hold the new pages
+   * Each invocation adds images & increments nt (from 0 ... )
+   * 
+   * Create a new pageSpec with perPage images & pushed to pageSpecs
+   *
+   * @param countClaz [count, class, ...args]
+   * @param gridSpec
+   * @param pageSpecs
+   * @param open [false] set true to append next images to current pageSpec
+   * @returns the given PageSpec[] extended to hold the new pages
    */
-  clazToTemplate(countClaz: CountClaz[], gridSpec = ImageGrid.hexDouble_1_19, pageSpecs: PageSpec[] = []) {
-    const frontAry = [] as DisplayObject[][];
-    const backAry = [] as (DisplayObject[] | undefined)[];
+  clazToTemplate(countClaz: CountClaz[], gridSpec = ImageGrid.hexDouble_1_19, pageSpecs: PageSpec[] = [], open = false) {
+    const pagen = pageSpecs.length; // current page to fill
     const { nrow, ncol } = gridSpec, perPage = nrow * ncol;
+    let nt = pagen * perPage;       // current number of images in pageSpecs
+
+    const frontAry = [] as DisplayObject[][];
+    const backAry  = [] as DisplayObject[][];
+    if (gridSpec !== this.openSpec?.gridSpec) this.openSpec == undefined; // defered page is NOT rendered to canvas!
+    if (this.openSpec) {
+      frontAry[pagen] = this.openSpec.frontObjs;
+      backAry[pagen] = this.openSpec.backObjs as DisplayObject[];
+      nt = this.openNt;
+      this.openSpec = undefined;
+      this.openNt = 0;
+    }
     const double = gridSpec.double ?? true, split = gridSpec.split;
-    const splitn = Math.ceil(perPage / 2); 
-    const page = pageSpecs.length;
-    let nt = page * perPage;
+    const splitn = Math.ceil(perPage / 2);
+
     // composeTile for each frontObj (and matching backObj) in proper orientation.
     countClaz.forEach(([count, claz, ...args]) => {
       const nreps = Math.abs(count);
@@ -135,17 +157,23 @@ export class TileExporter {
             tile.rotation = claz.rotateBack;
           }
           const backAryPagen = backAry[pagen] ?? (backAry[pagen] = []);
-          backAryPagen.push(backTile);
+          backAryPagen.push(backTile!);
         }
       }
     });
     // loop to generate series of pageSpec(canvas) to hold the given frontObjs (& backObjs if double)
-    frontAry.forEach((aryFront, pagen) => {
-      const aryBack = backAry[pagen];
-      const frontObjs = split ? aryFront.slice(0, splitn) : aryFront; 
+    frontAry.forEach((aryFront, aryn) => {
+      const aryBack = backAry[aryn];
+      const pagen = pageSpecs.length;
+      const frontObjs = split ? aryFront.slice(0, splitn) : aryFront;
       const backObjs = double ? aryBack : split ? aryFront.slice(splitn) : undefined;
       const canvasId = `canvas_P${pagen}`;
       const pageSpec = { gridSpec, frontObjs, backObjs };
+      if (open && (aryFront.length % perPage > 0)) {
+        this.openSpec = pageSpec; this.openNt = nt;
+        console.log(stime(this, `.makePage: DEFER canvasId=${canvasId}, pageSpec=`), pageSpec, nt);
+        return; // do not add to pageSpecs
+      }
       pageSpecs[pagen] = pageSpec; // append new pageSpec to pageSpecs[]
       console.log(stime(this, `.makePage: canvasId=${canvasId}, pageSpec=`), pageSpec);
       this.imageGrid.makePage(pageSpec, canvasId);  // make canvas with images, but do not download [yet]
