@@ -109,12 +109,15 @@ export class TileExporter {
   openNt = 0;
 
   /**
-   * Append to pageSpecs; 
-   * each PageSpec will contain the CanvasElement filled with Tile-Images (frontObjs & backObjs)
-   * 
    * Each invocation adds images & increments nt (from 0 ... )
+   *
+   * Append a new PageSpec to pageSpecs when a page is full; 
    * 
-   * Create a new pageSpec with perPage images & pushed to pageSpecs
+   * Ultimately, each PageSpec contains a CanvasElement (filled with Tiles/Images: frontObjs & backObjs)
+   * That canvas will be available to view & download as .png file
+   * 
+   * Some of this implementation may eventually be refactored into the ImageGrid PageMaker.
+   * Depending on whether split & double & open are generally useful.
    *
    * @param countClaz [count, class, ...args]
    * @param gridSpec
@@ -129,7 +132,7 @@ export class TileExporter {
 
     const frontAry = [] as DisplayObject[][];
     const backAry  = [] as DisplayObject[][];
-    if (gridSpec !== this.openSpec?.gridSpec) this.openSpec == undefined; // defered page is NOT rendered to canvas!
+    if (gridSpec !== this.openSpec?.layoutSpec) this.openSpec == undefined; // defered page is NOT rendered to canvas!
     if (this.openSpec) {
       frontAry[pagen] = this.openSpec.frontObjs;
       backAry[pagen] = this.openSpec.backObjs as DisplayObject[];
@@ -168,7 +171,7 @@ export class TileExporter {
       const frontObjs = split ? aryFront.slice(0, splitn) : aryFront;
       const backObjs = double ? aryBack : split ? aryFront.slice(splitn) : undefined;
       const canvasId = `canvas_P${pagen}`;
-      const pageSpec = { gridSpec, frontObjs, backObjs };
+      const pageSpec = { layoutSpec: gridSpec, frontObjs, backObjs };
       if (open && (aryFront.length % perPage > 0)) {
         this.openSpec = pageSpec; this.openNt = nt;
         console.log(stime(this, `.makePage: DEFER canvasId=${canvasId}, pageSpec=`), pageSpec, nt);

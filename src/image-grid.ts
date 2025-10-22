@@ -15,6 +15,8 @@ export type LayoutSpec = {
   bleed?: number,
   /** if defined, paint a bg RectShape behind the ImageGrid */
   bgColor?: string,
+  /** [1: already in pixels] scale factor for [x0/x1, y0, delx, dely] --> pixels */
+  dpi?: number,
   /** set scale on View canvas [.1] */
   scale?: number,
 }
@@ -44,8 +46,6 @@ export type GridSpec = LayoutSpec & {
   cardh?: number,
   /** for close-packed shapes, exclude bleed on Central edges, include on L & R */
   trimLCR?: boolean,
-  /** [1: already in pixels] scale factor for [x0/x1, y0, delx, dely] --> pixels */
-  dpi?: number,
   /** true if template includes slots for double-sided images [symetric from bottom] */
   double?: boolean,
   /** true to split images into frontAry & backAry (for mini-card double/split template) */
@@ -56,14 +56,16 @@ export type GridSpec = LayoutSpec & {
 
 export type PageSpec = {
   layoutSpec?: LayoutSpec, // can use: gridSpec = pageSpec.layoutSpec as GridSpec
-  gridSpec?: GridSpec,     // retain for original/legacy TileExporter apps
-  frontObjs?: DisplayObject[], // for gridSpec
+  frontObjs?: DisplayObject[], // objects for addObjects for gridSpec
   backObjs?: (DisplayObject  | undefined)[] | undefined, // for gridSpec.double
   canvas?: HTMLCanvasElement,
   basename?: string,
 }
 
-/** make canvas pages for previewing & download for print */
+/** make canvas pages for previewing & download for print
+ * 
+ * Setup html buttons, manage canvases, delegate to addObjects()
+ */
 export class PageMaker {
   constructor(makePageSpecs: () => PageSpec[], buttonId = 'makePage', label = 'MakePages') {
     this.setAnchorClick(buttonId, label, () => {
@@ -106,11 +108,14 @@ export class PageMaker {
 
   /** 
    * create a stage on given canvas, for addObjects()
-   * @param wh setCanvasSize(wh)
+   * @param layoutSpec with { height, width, dpi, scale, bgColor }
    * @param canvasId ['gridCanvas'] any string or an HTMLCanvasElement; suitable for new Stage()
    * @param scale [.2] canvasDiv.style.setProperty('scale', `${scale}`)
    */
-  setStageAndCanvas(wh: WH, canvasId: string | HTMLCanvasElement = 'gridCanvas', scale = .2) {
+  setStageAndCanvas(layoutSpec: LayoutSpec, canvasId: string | HTMLCanvasElement = 'gridCanvas') {
+    const { width, height, dpi, scale, bgColor } = layoutSpec;
+    const w = width * (dpi ?? 1);
+    const h = height * (dpi ?? 1);
     if (typeof canvasId === 'string') {
       this.canvas = (document.getElementById(canvasId) ?? document.createElement('canvas')) as HTMLCanvasElement;
       this.canvas.id = canvasId;
@@ -121,12 +126,17 @@ export class PageMaker {
     canvasDiv.style.setProperty('scale', `${scale}`);
     this.stage = makeStage(this.canvas, false);
     this.stage.removeAllChildren();
-    this.setCanvasSize(wh);
+    // add background if requested:
+    if (bgColor) {
+      const bg = new RectShape({ x: 0, y: 0, w, h }, bgColor, '')
+      this.stage.addChild(bg)
+    }
+    this.setCanvasSize(width, height);
   }
 
-  setCanvasSize(wh: WH) {
-    this.canvas.width = wh.width;
-    this.canvas.height = wh.height;
+  setCanvasSize(width = 100, height = 100) {
+    this.canvas.width = width;
+    this.canvas.height = height;
   }
 
   setAnchorClick(id: string, label: string, onclick?: ((ev: MouseEvent) => void) | 'stop') {
@@ -222,38 +232,35 @@ export class PageMaker {
    * 
    * Set pageSpec.canvas with completed HTMLCanvasElement.
    * 
-   * @param pageSpec \{ gridSpec, frontObjs, backObjs? }
+   * @param pageSpec \{ layoutSpec, width, height }
    * @param canvas a Canvas or canvasId
    * @returns (pageSpec.canvas holding the page image)
    */
   makePage(pageSpec: PageSpec, canvas?: HTMLCanvasElement | string ) {
-    const gridSpec = pageSpec.gridSpec, { bgColor, scale } = gridSpec;
-    const width = gridSpec.width * (gridSpec.dpi ?? 1);
-    const height = gridSpec.height * (gridSpec.dpi ?? 1);
-    this.setStageAndCanvas({ width, height }, canvas, scale);
-    if (bgColor) {
-      const bg = new RectShape({ x: 0, y: 0, w: width, h: height }, bgColor, '')
-      this.stage.addChild(bg)
-    }
+    // extract overall size of page/canvas
+    this.setStageAndCanvas(pageSpec.layoutSpec, canvas); // sets this.stage & this.canvas
     const nc = this.addObjects(pageSpec)
     this.stage.update();
-    pageSpec.canvas = this.canvas;
+    pageSpec.canvas = this.canvas; // canvas to view & download
 
     const { id } = this.canvas;
-    const info = { id, width, height, nc }; // not essential...
+    const info = { id, nc, layout: pageSpec.layoutSpec }; // not essential...
     console.log(stime(this, `.makePage: info =`), info);
     return pageSpec;
   }
 
-  /** override this abstract method to add  */
+  /**
+   * override this abstract method to add objects to this.stage & canvas
+   * @param pageSpec: { frontObjs, backObjs? }
+   */
   addObjects(pageSpec: PageSpec) {
     const cont = new NamedContainer('default', this.canvas.width / 2, this.canvas.height / 2);
-    cont.addChild(new CenterText('override addObjects() to see page contents'))
+    cont.addChild(...pageSpec.frontObjs); // badly placed?
     this.stage.addChild(cont);
   }
 }
 
-/** Setup html buttons, manage canvases, and add "Tile" to grid based on GridSpec. */
+/**  add "Tile" (cards, tokens) to a grid; per GridSpec. */
 export class ImageGrid extends PageMaker {
   // Office Depot stick-on circles; on Brother HL-L3210CW printer
   static circle_1_inch: GridSpec = {
@@ -328,7 +335,7 @@ export class ImageGrid extends PageMaker {
    * @returns number of child ojects added
    */
   override addObjects(pageSpec: PageSpec) {
-    const gridSpec: GridSpec = pageSpec.gridSpec; 
+    const gridSpec = pageSpec.layoutSpec as GridSpec; 
     const frontObjs: DisplayObject[] = pageSpec.frontObjs; 
     const backObjs: (DisplayObject | undefined)[] | undefined = pageSpec.backObjs;
     const cont = new Container();
