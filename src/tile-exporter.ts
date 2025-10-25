@@ -52,9 +52,15 @@ interface Claz extends Constructor<Tile> {
 
 /** [number of copies, Constructor, ... constructor args] */
 export type CountClaz = [count: number, claz: Claz, ...args: any];
+
+/** an Exporter of a Grid of Tiles, uses ImageGrid */
 export class TileExporter {
 
-  imageGrid = new ImageGrid(() => { return this.makeImagePages() });
+  imageGrid: ImageGrid;
+
+  constructor(pageMaker: typeof ImageGrid = ImageGrid) {
+    this.imageGrid = new pageMaker(() => { return this.makeImagePages() });
+  }
 
   /** override using clazToTemplate() to fill PageSpecs[] */
   makeImagePages() {

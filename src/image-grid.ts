@@ -1,9 +1,8 @@
-import { stime, WH } from "@thegraid/common-lib";
+import { stime } from "@thegraid/common-lib";
 import { Container, DisplayObject, Stage } from "@thegraid/easeljs-module";
 import { makeStage } from "./createjs-functions";
-import { RectShape } from "./paintable";
-import { CenterText } from "./center-text";
 import { NamedContainer } from "./named-container";
+import { RectShape } from "./paintable";
 
 /** basic fields for layout of graphics on template */
 export type LayoutSpec = {
@@ -13,6 +12,8 @@ export type LayoutSpec = {
   height: number, // canvas size
   /** amount to extend card image beyond cardw & cardh; (typically: .1 inch, 25-30 mm) */
   bleed?: number,
+  /** indent from width & height for safe text & graphics */
+  safe?: number,
   /** if defined, paint a bg RectShape behind the ImageGrid */
   bgColor?: string,
   /** [1: already in pixels] scale factor for [x0/x1, y0, delx, dely] --> pixels */
@@ -67,7 +68,7 @@ export type PageSpec = {
  * Setup html buttons, manage canvases, delegate to addObjects()
  */
 export class PageMaker {
-  constructor(makePageSpecs: () => PageSpec[], buttonId = 'makePage', label = 'MakePages') {
+  constructor(public makePageSpecs: () => PageSpec[], public buttonId = 'makePage', public label = 'MakePages') {
     this.setAnchorClick(buttonId, label, () => {
       this.setAnchorClick(buttonId, 'Making...')
       setTimeout(() => {
@@ -253,8 +254,8 @@ export class PageMaker {
    * override this abstract method to add objects to this.stage & canvas
    * @param pageSpec: { frontObjs, backObjs? }
    */
-  addObjects(pageSpec: PageSpec) {
-    const cont = new NamedContainer('default', this.canvas.width / 2, this.canvas.height / 2);
+  addObjects(pageSpec: PageSpec, x0 = this.canvas.width / 2, y0 = this.canvas.height / 2) {
+    const cont = new NamedContainer('default', x0, y0);
     cont.addChild(...pageSpec.frontObjs); // badly placed?
     this.stage.addChild(cont);
   }
