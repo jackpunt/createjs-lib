@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "rootDir": "./src",
     "outDir": "./dist",
     "forceConsistentCasingInFileNames": true,
     "noImplicitOverride": true,
@@ -9,7 +10,7 @@
     // "ignoreDeprecations": "5.0", // use "verbatimModuleSyntax" instead of "importNotUsedAsValue"
     // "importsNotUsedAsValues": "error",
     // https://stackoverflow.com/questions/58384179/syntaxerror-cannot-use-import-statement-outside-a-module
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "importHelpers": true, // requires tslib
     "sourceMap": true,
     "target": "ES2021",

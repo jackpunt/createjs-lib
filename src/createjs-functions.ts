@@ -1,5 +1,5 @@
 import { Constructor, F } from '@thegraid/common-lib';
-import { Container, DisplayObject, Event, MouseEvent, Stage, Text } from '@thegraid/easeljs-module';
+import { Container, DisplayObject, MouseEvent, Stage, Text } from '@thegraid/easeljs-module';
 
 declare module "@thegraid/easeljs-module" {
   interface Container {
@@ -10,7 +10,7 @@ declare module "@thegraid/easeljs-module" {
   interface EventDispatcher {
     dispatchEvent(type: string | Event | Object): boolean;
     dispatchEvent(type: string | Event | Object, bubbles?: boolean, cancelable?: boolean): boolean;
-    on(type: string, listener: (eventObj: any) => boolean, scope?: Object, once?: boolean, data?: any, useCapture?: boolean): Function;
+    on(type: string, listener: (eventObj: any, data?: any) => boolean, scope?: Object, once?: boolean, data?: any, useCapture?: boolean): Function;
   }
 }
 
@@ -25,7 +25,7 @@ Container.prototype.removeChildType = function removeChildType<T extends Display
  * @param canvasId a \<canvas> Element OR the DOM ID of a \<canvas> Element (or undefined for no canvas)
  */
 export function makeStage(canvasId?: string | HTMLCanvasElement, tick = true) {
-  const stage = new Stage(canvasId);
+  const stage = new Stage(canvasId);    // new Stage() will accept undefined
   stage.tickOnUpdate = stage.tickChildren = tick
   if (!stage.canvas) {
     stage.enableMouseOver(0)

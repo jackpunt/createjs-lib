@@ -1,5 +1,14 @@
 import { Container, DisplayObject, MouseEvent, Matrix2D } from '@thegraid/easeljs-module';
-import { XY, S, Obj, stime } from '@thegraid/common-lib';
+import { XY, S, stime } from '@thegraid/common-lib';
+
+// typescript happy if we extend DisplayObject with DragData
+// doNotDrag is deprecated, should be removed
+declare module '@thegraid/easeljs-module' {
+  interface DisplayObject {
+    DragData?: DragData;
+    doNotDrag: boolean;
+  }
+}
 
 /** Info about the current drag operation, shared between pressmove(s) and pressup. 
  * 
@@ -25,7 +34,7 @@ const S_stagemousemove = 'stagemousemove'
 // Note: @types SHOULD say: 
 // on(type: string, listener: (eventObj: Object, data?: any) => boolean, scope?: Object, once?: boolean, data?: any, useCapture?: boolean): Function;
 // but it elides the ", data?: any", so we use "as listener" to make typescript happy
-type listener = (e: MouseEvent) => void;
+type listener = (e: Object, data?: any) => void;
 type OnHandler = Function
 type DnDFunc = (c: DisplayObject | Container, ctx?: DragInfo) => void
 /** attached to each dragable DisplayObject. scope.dragfunc()/dropfunc()
@@ -56,7 +65,7 @@ export class Dragger {
     this.makeDragCont(parent)
   }
   /** Info about the current drag operation, shared between pressmove(s) and pressup. */
-  dragCont: Container
+  dragCont!: Container
 
   /**
    * Make the singleton dragCont for this Dragger
@@ -83,8 +92,8 @@ export class Dragger {
     let dragCont = this.dragCont;
 
     let scalmat: Matrix2D
-    let targetC: Container;
-    let targetD: DisplayObject;
+    let targetC: Container | undefined;
+    let targetD: DisplayObject | undefined;
     let rotation: number = obj.rotation
     obj.rotation = 0    // else dragging goes backward due to obj.concatMatrix
 
@@ -191,11 +200,11 @@ export class Dragger {
       // if data.clickToDrag use stagemousemove to provoke pressmove()
       if (data.clickToDrag && event.nativeEvent.button === 0) {
         // mouse is NOT down; to get 'drag' events we listen for stagemousemove:
-        let stageDrag = (e: MouseEvent, data?: DragData) => {
+        let stageDrag = (e: MouseEvent, data: DragData) => {
           e.currentTarget = obj
           this.pressmove(e, data)
         }
-        data.stagemousemove = stage.on(S_stagemousemove, stageDrag, this, false, data)
+        data.stagemousemove = stage.on(S_stagemousemove, stageDrag as listener, this, false, data)
         this.pressmove(event, data)  // --> data.dragInfo = this.newDragInfo(event, obj, data)
       }
       return     // a click, not a Drag+Drop
@@ -224,8 +233,9 @@ export class Dragger {
     stage?.update();
   }
   // attach DragData to the DisplayObject that is marked as Dragable:
-  getDragData(dispObj: DisplayObject): DragData { return dispObj['DragData'] }
-  setDragData(dispObj: DisplayObject, data: DragData) { return dispObj['DragData'] = data; }
+  /** makeDragable will initialize DragData */
+  getDragData(dispObj: DisplayObject): DragData { return dispObj['DragData']! }
+  setDragData(dispObj: DisplayObject, data?: DragData) { return dispObj['DragData'] = data; }
 
   /** 
    * addEventListeners for pressmove/pressup (stagemousedown/up and stagemousemove)
@@ -247,7 +257,7 @@ export class Dragger {
     // we pass DragData (containing data.dragInfo) 
     // Q: should we include { target: dispObj } in DragData? (vs using event.currentTarget)
     this.stopDragable(target) // remove prior Drag listeners
-    let data: DragData = { target, scope, dragfunc, dropfunc, isScaleCont }
+    let data: DragData = { target, scope, dragfunc, dropfunc, isScaleCont } as DragData;
     this.setDragData(target, data)
     data.pressmove = target.on(S.pressmove, this.pressmove as listener, this, false, data);
     data.pressup = target.on(S.pressup, this.pressup as listener, this, false, data);
@@ -335,15 +345,15 @@ export class Dragger {
   /** prevent DisplayObject from being dragable 
    * @deprecated use stopDragable() or stopDrag()
    */
-  notDragable(dispObj: DisplayObject) { dispObj[S.doNotDrag] = true }
+  notDragable(dispObj: DisplayObject) { dispObj['doNotDrag'] = true }
   /** remove pressmove and pressup listenerf from dispObj. */
   stopDragable(dispObj: DisplayObject) {
     let data = this.getDragData(dispObj)
     if (!!data) {
       //console.log(stime(this, ".stopDragable: dispObj="), dispObj, data.pressmove, data.pressup)
-      dispObj.removeEventListener(S.pressmove, data.pressmove)
-      dispObj.removeEventListener(S.pressup, data.pressup)
-      dispObj.removeEventListener(S_stagemousemove, data.stagemousemove)
+      dispObj.removeEventListener(S.pressmove, data.pressmove!)
+      dispObj.removeEventListener(S.pressup, data.pressup!)
+      dispObj.removeEventListener(S_stagemousemove, data.stagemousemove!)
       delete data.pressmove
       delete data.pressup
       delete data.isScaleCont
