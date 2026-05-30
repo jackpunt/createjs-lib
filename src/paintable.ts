@@ -4,6 +4,32 @@ import { CenterText } from "./center-text";
 import { afterUpdate, textWidth } from "./createjs-functions";
 import { NamedContainer } from "./named-container";
 
+declare module '@thegraid/easeljs-module' {
+
+  // declare here until included in @types/easeljs/index.d.ts
+  interface Graphics {
+
+    /**
+    * Draws a polygon from array of point arrays.
+    *
+    *      myGraphics.beginFill("#FF0").drawPolygon([100, 100], [150, 50], [200,100], [200,200], [100,200]);
+    *      // makes a house shape
+    *
+    * A tiny API method "pg" also exists.
+    *
+    * @method drawPolygon
+    * @param {Array} points An array of [x,y] points.
+    * @param {Boolean} close Whether to close the polygon - default is true.
+    * @return {Graphics} The Graphics instance the method is called on (useful for chaining calls.)
+    * @chainable
+    **/
+    drawPolygon(points: [number, number][], close: boolean): void;  // Dan Zen 4/2/21
+
+    /** short form of drawPolygon */
+    pg(points: [number, number][], close: boolean): void;
+  }
+}
+
 export interface Paintable extends DisplayObject {
   /**
    * paint with given or current color; updateCache()
@@ -55,7 +81,7 @@ export class PaintableShape extends Shape implements Paintable {
     return this._g0?.clone() ?? new Graphics(); // clone, so original is not mutated.
   }
   /** previous/current Graphics that were rendered. (optimization... paint(color, true) to override) */
-  cgfGraphics: Graphics; // points to this.graphics after cgf runs.
+  cgfGraphics?: Graphics; // points to this.graphics after cgf runs.
   /**
    *
    * @param _cgf Create Graphics Function
@@ -163,12 +189,11 @@ export class PolyShape extends PaintableShape {
     this.paint(fillc);
   }
 
-  readonly degToRadians = 180/Math.PI;
   /** set fillc and strokec, invoke drawPoly(0, 0, ...) */
   pscgf(fillc: string, g = this.g0) {
     ((this.fillc = fillc) ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
-    g.dp(0, 0, this.rad, this.nsides, this.pSize, this.tilt * this.degToRadians);
+    g.dp(0, 0, this.rad, this.nsides, this.pSize, this.tilt);
     return g;
   }
 
@@ -179,6 +204,33 @@ export class PolyShape extends PaintableShape {
     } else {
       super.setBounds(x, y, width, height)
     }
+  }
+}
+
+export class PathShape extends PaintableShape {
+  /** array of [x, y] points */
+  public points: [number, number][] = [];
+  public tilt = 0;
+  public fillc = C.grey;
+  public strokec = C.black;
+
+  constructor({ points, tilt, fillc, strokec }:
+    { points: [number, number][], tilt?: number, fillc?: string, strokec?: string }, g0?: Graphics) {
+    super((fillc) => this.pscgf(fillc), fillc, g0);
+    this.points = points;
+    this.tilt = tilt ?? 0;
+    this.fillc = fillc ?? C.grey;
+    this.strokec = strokec ?? C.black;
+    this._cgf = this.pscgf;
+    this.paint(fillc);
+  }
+
+  /** set fillc and strokec, invoke drawPoly(0, 0, ...) */
+  pscgf(fillc: string, g = this.g0) {
+    ((this.fillc = fillc) ? g.f(fillc) : g.ef());
+    (this.strokec ? g.s(this.strokec) : g.es());
+    g.pg(this.points, true);
+    return g;
   }
 }
 
@@ -385,7 +437,7 @@ export class RectWithDisp extends NamedContainer implements Paintable {
     this.setBounds(undefined, 0, 0, 0)
   }
   /** [dx0, dx1, dy0, dy1] are [left, right, top, bottom] margins */
-  get borders() { return [this.dx0, this.dx1, this.dy0, this.dy1] as [number, number, number, number] }
+  get borders(): [number, number, number, number] { return [this.dx0, this.dx1, this.dy0, this.dy1] }
   /** 
    * set any of [dx0, dx1, dy0, dy1]
    * 
@@ -398,7 +450,7 @@ export class RectWithDisp extends NamedContainer implements Paintable {
     db[3] !== undefined && (this.dy1 = db[3]);
   }
 
-  _corner: number;
+  _corner: number = 0;
   /** corner radius, does not repaint/recache */
   get corner() { return this._corner; }
   set corner(r: number) {
@@ -498,7 +550,7 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
    */
   alsoPickTextColor(textColors = this.textColors, cgf = this.rectShape.cgf, ) {
     this.textColors = textColors;
-    this.rectShape.cgf = (color: string, g: Graphics) => {
+    this.rectShape.cgf = (color: string, g?: Graphics) => {
       this.label.color = C.pickTextColor(color, this.textColors);
       return cgf.call(this.rectShape, color, g)
     }
@@ -603,7 +655,7 @@ export class UtilButton extends TextInRect {
   }
 
   /** When activated, this.rollover(mouseIn) is invoked when mouse enter/exits this button. */
-  rollover: (mouseIn: boolean) => void;
+  rollover?: (mouseIn: boolean) => void;
   _active = false;
   /** indicates if this button is currently activated. */
   get isActive() { return this._active; }
