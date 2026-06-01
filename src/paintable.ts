@@ -169,10 +169,18 @@ export class PolyShape extends PaintableShape {
   public strokec = C.black;
 
   /**
-   * pscgf() invokes drawPoly(0,0,...);
+   * A regular equilateral Polygon Shape, may be tilted clockwise.
+   * 
+   * this.pscgf() invokes drawPolygon at (0, 0, ...);
    *
    * To adjust (x,y): supply g0 = new Graphics().mt(x,y)
    * @param params \{ rad, nsides, pSize, tilt, fillc, strokec }
+   * - rad: radius of polygon
+   * - nsides: number of sides
+   * - pSize: point size of vertex [0]
+   * - tilt: clockwise tilt in degrees [0]
+   * - fillc: fill color [grey]
+   * - strokec: stroke color [black] use '' for no stroke.
    * @param g0 Graphics base
    */
   constructor({ rad, nsides, pSize, tilt, fillc, strokec }:
@@ -193,7 +201,7 @@ export class PolyShape extends PaintableShape {
   pscgf(fillc: string, g = this.g0) {
     ((this.fillc = fillc) ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
-    g.dp(0, 0, this.rad, this.nsides, this.pSize, this.tilt);
+    g.dp(0, 0, this.rad, this.nsides, this.pSize, this.tilt); // drawPolygon()
     return g;
   }
 
@@ -209,16 +217,23 @@ export class PolyShape extends PaintableShape {
 
 export class PathShape extends PaintableShape {
   /** array of [x, y] points */
-  public points: [number, number][] = [];
-  public tilt = 0;
+  public points!: [number, number][];
   public fillc = C.grey;
   public strokec = C.black;
 
+  /**
+   * Arbitrary polygon shape.
+   * 
+   * @param options \{ points, fillc? strokec? \}
+   * - points: array of [x, y] points, path will be auto-closed.
+   * - fillc: fill color [grey]
+   * - strokec: stroke color [black]
+   * @param g0 initial Graphics [this.graphics]
+   */
   constructor({ points, tilt, fillc, strokec }:
     { points: [number, number][], tilt?: number, fillc?: string, strokec?: string }, g0?: Graphics) {
     super((fillc) => this.pscgf(fillc), fillc, g0);
     this.points = points;
-    this.tilt = tilt ?? 0;
     this.fillc = fillc ?? C.grey;
     this.strokec = strokec ?? C.black;
     this._cgf = this.pscgf;
@@ -229,7 +244,7 @@ export class PathShape extends PaintableShape {
   pscgf(fillc: string, g = this.g0) {
     ((this.fillc = fillc) ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
-    g.pg(this.points, true);
+    g.pg(this.points, true);  // close the loop
     return g;
   }
 }
