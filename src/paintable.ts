@@ -184,7 +184,7 @@ export class PolyShape extends PaintableShape {
    * @param g0 Graphics base
    */
   constructor({ rad, nsides, pSize, tilt, fillc, strokec }:
-    { rad?: number, nsides?: number, pSize: number, tilt?: number, fillc?: string, strokec?: string }, g0?: Graphics) {
+    { rad?: number, nsides?: number, pSize?: number, tilt?: number, fillc?: string, strokec?: string }, g0?: Graphics) {
     super((fillc) => this.pscgf(fillc), fillc, g0);
 
     this.nsides = nsides ?? 4;
@@ -314,6 +314,8 @@ export class RectShape extends PaintableShape {
   /**
    * Paint a rectangle (possibly with rounded corners) with fillc and stroke.
    * 
+   * The stroke goes *outside* the given (w, h)
+   * 
    * corner radius: rr = [tl, tr, br, bl] OR r = radius for all 4
    * 
    * rscgf(fillc) uses rect, strokec, cRad, sSiz, g0 to paint a rectangle.
@@ -355,9 +357,9 @@ export class RectShape extends PaintableShape {
     if (x === undefined) {
       const { x, y, w, h } = this._rect;
       // try to avoid truncation of bounding box due to later rounding:
-      // sse is _sSiz rounded up to an even integer, ss2 = sse/2
-      const ssi = this.strokec ? (Math.ceil(this._sSiz ?? 0)) : 0, ss2 = Math.ceil(ssi / 2), sse = 2 * ss2;
-      this.setBounds(x - ss2, y - ss2, w + sse, h + sse)
+      // ssi is _sSiz rounded up to an even integer, sse = 2 * ssi; (also an int)
+      const ssi = Math.ceil(this.strokec ? (this._sSiz ?? 0) : 0), sse = 2 * ssi;
+      this.setBounds(Math.floor(x - ssi), Math.floor(y - ssi), Math.ceil(w + sse), Math.ceil(h + sse))
     } else {
       super.setBounds(x, y, width, height) // can be different from _rect
     }
