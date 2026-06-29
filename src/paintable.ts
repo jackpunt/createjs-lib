@@ -1,5 +1,5 @@
-import { type XYWH, C, className, F } from "@thegraid/common-lib";
-import { type DisplayObject, Graphics, Shape, type Rectangle, type Text } from "@thegraid/easeljs-module";
+import { C, className, F, type XYWH } from "@thegraid/common-lib";
+import { Graphics, Rectangle, Shape, type DisplayObject, type Text } from "@thegraid/easeljs-module";
 import { CenterText } from "./center-text";
 import { afterUpdate, textWidth } from "./createjs-functions";
 import { NamedContainer } from "./named-container";
@@ -217,9 +217,9 @@ export class PolyShape extends PaintableShape {
 
 export class PathShape extends PaintableShape {
   /** array of [x, y] points */
-  public points!: [number, number][];
-  public fillc = C.grey;
-  public strokec = C.black;
+  public points: [number, number][];
+  public fillc: string;
+  public strokec: string;
 
   /**
    * Arbitrary polygon shape.
@@ -281,6 +281,11 @@ export class EllipseShape extends PaintableShape {
       super.setBounds(x, y, width, height)
     }
   }
+  override getBounds(): Rectangle {
+    const b = super.getBounds();
+    if (b) { return b }
+    return super.getBounds() ?? new Rectangle(this.x - this.radx, this.y - this.rady, 2 * this.radx, 2 * this.rady)
+  }
 }
 
 /**
@@ -319,7 +324,11 @@ export class RectShape extends PaintableShape {
    * corner radius: rr = [tl, tr, br, bl] OR r = radius for all 4
    * 
    * rscgf(fillc) uses rect, strokec, cRad, sSiz, g0 to paint a rectangle.
-   * @param rect \{ x=0, y=0, w=rad, h=rad, r=0, s=1 } origin, extent, corner radius, stroke width.
+   * @param rect \{ x=0, y=0, w=rad, h=rad, r=0, s=1 } 
+   * - x, y: origin, 
+   * - w, h: extent, 
+   * - r | rr: corner radius, 
+   * - s: stroke width.
    * @param fillc [C.white] color to paint the rectangle, '' for no fill
    * @param strokec [C.black] stroke color, '' for no stroke
    * @param g0 [new Graphics()] Graphics to clone and extend during paint()
@@ -351,6 +360,13 @@ export class RectShape extends PaintableShape {
     (s !== undefined) && (this._sSiz = s);
     (rr !== undefined) && (this._rr = rr);
     this.setBounds(undefined, 0, 0, 0);
+  }
+
+  override getBounds(): Rectangle {
+    const b = super.getBounds();
+    if (b) { return b; }
+    const ssi = Math.ceil(this.strokec ? (this._sSiz ?? 0) : 0), sse = 2 * ssi; 
+    return new Rectangle(Math.floor(this.x + this._rect.x - ssi), Math.floor(this.y + this._rect.y - ssi), Math.ceil(this._rect.w + sse), Math.ceil(this._rect.h + sse))
   }
 
   override setBounds(x: number | undefined | null, y: number, width: number, height: number): void {
