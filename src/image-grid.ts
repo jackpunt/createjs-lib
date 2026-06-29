@@ -55,6 +55,9 @@ export type GridSpec = LayoutSpec & {
   land?: boolean,
 }
 
+/**
+ * we assume that layoutSpec and frontObjs *are* defined when expected!
+ */
 export type PageSpec = {
   layoutSpec?: LayoutSpec, // can use: gridSpec = pageSpec.layoutSpec as GridSpec
   frontObjs?: DisplayObject[], // objects for addObjects for gridSpec
@@ -102,7 +105,7 @@ export class PageMaker {
     canvasDiv.style.setProperty('scale', nScale);
   }
 
-  setScale(newScale?: string) {
+  setScale(newScale: string) {
     const canvasDiv = document.getElementById('canvasDiv') as HTMLCanvasElement;
     canvasDiv.style.setProperty('scale', newScale);
   }
@@ -239,7 +242,7 @@ export class PageMaker {
    */
   makePage(pageSpec: PageSpec, canvas?: HTMLCanvasElement | string ) {
     // extract overall size of page/canvas
-    this.setStageAndCanvas(pageSpec.layoutSpec, canvas); // sets this.stage & this.canvas
+    this.setStageAndCanvas(pageSpec.layoutSpec!, canvas); // sets this.stage & this.canvas
     const nc = this.addObjects(pageSpec)
     this.stage.update();
     pageSpec.canvas = this.canvas; // canvas to view & download
@@ -256,7 +259,7 @@ export class PageMaker {
    */
   addObjects(pageSpec: PageSpec, x0 = this.canvas.width / 2, y0 = this.canvas.height / 2) {
     const cont = new NamedContainer('default', x0, y0);
-    cont.addChild(...pageSpec.frontObjs); // badly placed?
+    cont.addChild(...pageSpec.frontObjs!); // badly placed?
     this.stage.addChild(cont);
   }
 }
@@ -337,7 +340,7 @@ export class ImageGrid extends PageMaker {
    */
   override addObjects(pageSpec: PageSpec) {
     const gridSpec = pageSpec.layoutSpec as GridSpec; 
-    const frontObjs: DisplayObject[] = pageSpec.frontObjs; 
+    const frontObjs: DisplayObject[] = pageSpec.frontObjs!; 
     const backObjs: (DisplayObject | undefined)[] | undefined = pageSpec.backObjs;
     const cont = new Container();
     const def = { x0: 0, y0: 0, delx: 300, dely: 300, dpi: 1 }

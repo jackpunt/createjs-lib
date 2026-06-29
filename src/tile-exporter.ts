@@ -140,7 +140,7 @@ export class TileExporter {
     const backAry  = [] as DisplayObject[][];
     if (gridSpec !== this.openSpec?.layoutSpec) this.openSpec == undefined; // defered page is NOT rendered to canvas!
     if (this.openSpec) {
-      frontAry[pagen] = this.openSpec.frontObjs;
+      frontAry[pagen] = this.openSpec.frontObjs!;
       backAry[pagen] = this.openSpec.backObjs as DisplayObject[];
       nt = this.openNt;
       this.openSpec = undefined;
