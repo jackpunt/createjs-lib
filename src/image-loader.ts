@@ -5,7 +5,7 @@ import type { NamedObject } from ".";
 /** Simple async Image loader [from ImageReveal.loadImage()]
  *
  * see also: createjs.ImageLoader, which we don't use.
- * 
+ *
  * Migrated from hexLib (Jun 20, 2025)
  */
 export class ImageLoader {
@@ -14,7 +14,7 @@ export class ImageLoader {
   /**
    * Promise to load url as HTMLImageElement
    */
-  loadImage(fname0: string, ext = this.ext): Promise<HTMLImageElement> {
+  loadImage(fname0: string, ext = this.ext, inline = this.inline): Promise<HTMLImageElement> {
     const fname = fname0.split('.')[0];
     const ip0  = this.ipmap.get(fname);
     if (ip0) {
@@ -22,7 +22,7 @@ export class ImageLoader {
     }
     const url = `${this.root}${fname}.${ext}`;
     //console.log(stime(`image-loader: try loadImage`), url)
-    const ip = new Promise<HTMLImageElement>((res, rej) => {
+    const fileRes = (res: (value: HTMLImageElement | PromiseLike<HTMLImageElement>) => void, rej: (reason?: any) => void) => {
       const img: HTMLImageElement = new Image();
       img.onload = (evt => {
         (img as NamedObject).Aname = fname;
@@ -31,7 +31,28 @@ export class ImageLoader {
       });
       img.onerror = ((err) => rej(`failed to load ${url} -> ${err}`));
       img.src = url; // start loading
-    });
+    }
+
+    const inlineRes = (res: (value: HTMLImageElement | PromiseLike<HTMLImageElement>) => void, rej: (reason?: any) => void) => {
+      const imageId = url.replace(/[\/\.]/g, '_');
+      // docImg has lazy-loading, so will not resolve until we provoke it:
+      const docImg = document.getElementById(imageId) as HTMLImageElement;
+      if (!docImg) {
+        rej(new Error(`Element with id "${imageId}" not found in DOM.`));
+      }
+      const img = new Image();
+      this.imap.set(fname, img); // HTMLImageElement that will be resolved!
+
+      // The promise resolves with the fully loaded image instance, guaranteeing dimensions are populated
+      img.onload = () => res(img);
+      img.onerror = () => rej(new Error(`Failed to decode inline image data for id "${imageId}".`));
+      // Setting src to the base64 source string initiates browser decoding
+      img.src = docImg.src;
+    }
+
+    const res_rej = inline ? inlineRes : fileRes;
+
+    const ip = new Promise<HTMLImageElement>(res_rej);
     // ip['Aname'] = `${fname}-${++ImageLoader.ipser}`;
     this.ipmap.set(fname, ip);
     return ip;
@@ -43,8 +64,13 @@ export class ImageLoader {
    */
   loadImages(fnames = this.fnames, ext = this.ext) {
     fnames.forEach(fname => this.ipmap.set(fname, this.loadImage(fname, ext)));
-    return this.imageMapPromise =  Promise.all(this.ipmap.values()).then(
-      (images) => this.imap, (reason) => {
+    const allPromises = this.ipmap.values();
+    return this.imageMapPromise =  Promise.all(allPromises).then(
+      (images) => {
+        console.log(stime(this, `.allPromises resolved: images[0].width = `), images[0] ? images[0].width : 'no images[0]!')
+        return this.imap; // with allPromises resolved: images all loaded
+      },
+      (reason) => {
         console.error(stime(this, `loadImages failed: ${reason}`));
         return this.imap;
       });
@@ -60,12 +86,13 @@ export class ImageLoader {
    * @param imap supply or create new Map()
    * @param cb invoked with (imap)
    */
-  constructor(args: { root: string, fnames: string[], ext: string },
+  constructor(args: { root: string, fnames: string[], ext: string, inline?: boolean },
     cb?: (imap: Map<string, HTMLImageElement>) => void)
   {
     this.root = args.root;
     this.fnames = args.fnames;
     this.ext = args.ext;
+    this.inline = args.inline ?? false;
     if (cb) {
       this.loadImages().then(imap => cb(imap));
     }
@@ -75,8 +102,9 @@ export class ImageLoader {
   readonly root: string;
   readonly fnames: string[];
   readonly ext: string;
-  imagePromises: Promise<HTMLImageElement>[];
-  imageMapPromise: Promise<Map<string, HTMLImageElement>>
+  readonly inline: boolean;
+  imagePromises!: Promise<HTMLImageElement>[]; // believe to be not used; legacy from hexcity?
+  imageMapPromise!: Promise<Map<string, HTMLImageElement>>
 }
 
 
@@ -115,9 +143,10 @@ export class AliasLoader {
     root: 'assets/images/',
     fnames: [] as string[],
     ext: 'png',
+    inline: false,
   };
 
-  imageLoader: ImageLoader;
+  imageLoader!: ImageLoader;
   /** use ImageLoader to load images, THEN invoke callback. */
   loadImages(cb?: (imap?: Map<string, HTMLImageElement>) => void) {
     this.imageLoader = new ImageLoader(this.imageArgs, (imap) => cb?.(imap));
@@ -125,7 +154,7 @@ export class AliasLoader {
 
   /** lookup image form ImageLoader imap, using aliases[name] ?? name. */
   getImage(name: string) {
-    return this.imageLoader.imap.get(this.aliases[name] ?? name);
+    return this.imageLoader.imap.get(this.aliases[name] ?? name)!;
   }
 
   /**
