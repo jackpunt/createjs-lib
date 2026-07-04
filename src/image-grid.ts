@@ -150,6 +150,14 @@ export class PageMaker {
     else if (onclick) { anchor.onclick = onclick }
   }
 
+  /**
+   * create canvas(s) and fill with all the images from pageSpecs
+   * - setup view.onClick to view each generated page in turn
+   * - and download.onClick to download the canvas in view
+   * 
+   * @param pageSpecs for each page to generate (create a series of canvas objects)
+   * @returns 
+   */
   downloadPageSpecs(pageSpecs: PageSpec[]) {
     const baseName = (n=0) => `P${n}${pageSpecs[n].basename ? `_${pageSpecs[n].basename}` : ''}`;
 
@@ -161,7 +169,7 @@ export class PageMaker {
       const base = baseName(n);
       const filename = `${base}@${stime.fs("MM-DD_kk_mm_ssL")}.png`;
       // console.log(stime(this, `.downloadClick: ${canvasId} -> ${filename}`))
-      this.downloadImage(canvas, filename);
+      this.downloadCanvas(canvas, filename);
       const next = `${(downClick < pageSpecs.length) ? baseName(downClick): 'done'}`
       this.setAnchorClick('download', `Download ${next}`);
     }
@@ -219,14 +227,34 @@ export class PageMaker {
     }
   }
 
-  downloadImage(canvas: HTMLCanvasElement, filename = 'image.png', downloadId = 'download') {
-    const anchor = document.getElementById(downloadId) as HTMLAnchorElement;
+  downloadCanvas(canvas: HTMLCanvasElement, filename = 'image.png') {
     const imageURL = canvas.toDataURL("image/png");
+    this.downloadImage(imageURL, filename, canvas.id);
+  }
+
+  downloadImage(imageURL: string, filename = 'image.png', logId = "image") {
     const octetURL = imageURL.replace("image/png", "image/octet-stream");
+    this.downloadURL(octetURL, filename, logId)
+  }
+
+  downloadBlob(blob: Blob, filename = 'blob', logId = "blob") {
+    const blobURL = URL.createObjectURL(blob);
+    this.downloadURL(blobURL, filename, logId, blob.size)
+    URL.revokeObjectURL(blobURL);   // Clean up the memory URL object
+  }
+
+  downloadURL(anchorURL: string, filename = 'image.png', logId = "image", len = anchorURL.length) {
+    const anchor = document.createElement('a');
     anchor.download = filename;
-    anchor.href = octetURL;
-    console.log(stime(this, `.downloadImage: ${canvas.id} -> ${filename} ${octetURL.length}`))
-  }  
+    anchor.href = anchorURL;
+
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+
+    console.log(stime(this, `.downloadImage: ${logId} -> ${filename} length = ${(len/1024).toFixed(2)}Kb`))
+  }
+
 
   /** 
    * Make a single page image, injecting the canvas into given pageSpec.
@@ -243,7 +271,7 @@ export class PageMaker {
   makePage(pageSpec: PageSpec, canvas?: HTMLCanvasElement | string ) {
     // extract overall size of page/canvas
     this.setStageAndCanvas(pageSpec.layoutSpec!, canvas); // sets this.stage & this.canvas
-    const nc = this.addObjects(pageSpec)
+    const nc = this.addObjects(pageSpec).numChildren;
     this.stage.update();
     pageSpec.canvas = this.canvas; // canvas to view & download
 
@@ -256,11 +284,13 @@ export class PageMaker {
   /**
    * override this abstract method to add objects to this.stage & canvas
    * @param pageSpec: { frontObjs, backObjs? }
+   * @returns Container of frontObjs (& backObjs) added to the stage of this.canvas
    */
-  addObjects(pageSpec: PageSpec, x0 = this.canvas.width / 2, y0 = this.canvas.height / 2) {
+  addObjects(pageSpec: PageSpec, x0 = this.canvas.width / 2, y0 = this.canvas.height / 2): Container {
     const cont = new NamedContainer('default', x0, y0);
     cont.addChild(...pageSpec.frontObjs!); // badly placed?
     this.stage.addChild(cont);
+    return cont;
   }
 }
 
@@ -366,6 +396,6 @@ export class ImageGrid extends PageMaker {
         cont.addChild(backObj);
       }
     });
-    return cont.numChildren;
+    return cont;
   }
 }
