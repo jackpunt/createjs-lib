@@ -59,11 +59,11 @@ export type GridSpec = LayoutSpec & {
  * we assume that layoutSpec and frontObjs *are* defined when expected!
  */
 export type PageSpec = {
-  layoutSpec?: LayoutSpec, // can use: gridSpec = pageSpec.layoutSpec as GridSpec
-  frontObjs?: DisplayObject[], // objects for addObjects for gridSpec
-  backObjs?: (DisplayObject  | undefined)[] | undefined, // for gridSpec.double
-  canvas?: HTMLCanvasElement,
-  basename?: string,
+  layoutSpec: LayoutSpec, // can use: gridSpec = pageSpec.layoutSpec as GridSpec
+  frontObjs: DisplayObject[], // objects for addObjects for gridSpec
+  backObjs: (DisplayObject  | undefined)[] | undefined, // for gridSpec.double
+  canvas?: HTMLCanvasElement,  // containing rendered frontObjs & backObjs
+  basename?: string,  // P${n}_${basename?}@${timestamp}
 }
 
 /** make canvas pages for previewing & download for print
@@ -73,7 +73,7 @@ export type PageSpec = {
 export class PageMaker {
   constructor(public makePageSpecs: () => PageSpec[], public buttonId = 'makePage', public label = 'MakePages') {
     this.setAnchorClick(buttonId, label, () => {
-      this.setAnchorClick(buttonId, 'Making...')
+      this.setAnchorClick(buttonId, 'Making . . .')
       setTimeout(() => {
         const pageSpecs = makePageSpecs();
         this.downloadPageSpecs(pageSpecs);
@@ -115,6 +115,7 @@ export class PageMaker {
    * @param layoutSpec with { height, width, dpi, scale, bgColor }
    * @param canvasId ['gridCanvas'] any string or an HTMLCanvasElement; suitable for new Stage()
    * @param scale [.2] canvasDiv.style.setProperty('scale', `${scale}`)
+   * @returns this.canvas
    */
   setStageAndCanvas(layoutSpec: LayoutSpec, canvasId: string | HTMLCanvasElement = 'gridCanvas') {
     const { width, height, dpi, scale, bgColor } = layoutSpec;
@@ -126,8 +127,11 @@ export class PageMaker {
     } else {
       this.canvas = canvasId as HTMLCanvasElement;
     }
-    const canvasDiv = document.getElementById('canvasDiv') as HTMLCanvasElement;
-    canvasDiv.style.setProperty('scale', `${scale}`);
+    if (scale !== undefined && scale > 0) {
+      const canvasDiv = document.getElementById('canvasDiv') as HTMLCanvasElement;
+      canvasDiv.style.setProperty('scale', `${scale}`);
+    }
+    this.setCanvasSize(w, h);
     this.stage = makeStage(this.canvas, false);
     this.stage.removeAllChildren();
     // add background if requested:
@@ -135,7 +139,7 @@ export class PageMaker {
       const bg = new RectShape({ x: 0, y: 0, w, h }, bgColor, '')
       this.stage.addChild(bg)
     }
-    this.setCanvasSize(width, height);
+    return this.canvas;
   }
 
   setCanvasSize(width = 100, height = 100) {
@@ -364,9 +368,9 @@ export class ImageGrid extends PageMaker {
     x0: 334 + 1.75 * 150   , y0: 150 + 2.5 * 150, delx: 600, dely: 825, bleed: 30,  // (2705-305)/4, (1770-120)/2
   }
 
-  /** place objects (front & back) on this.stage, filling rows by column, until nrows filled. 
+  /** place objects (front & back) into Container on this.stage, filling rows by column, until nrows filled. 
    * 
-   * @returns number of child ojects added
+   * @returns Container of the DisplayObjects added (each dObj is offset[x,y] in the grid)
    */
   override addObjects(pageSpec: PageSpec) {
     const gridSpec = pageSpec.layoutSpec as GridSpec; 
