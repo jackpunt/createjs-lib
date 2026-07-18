@@ -1,7 +1,8 @@
 import { C, F, S } from "@thegraid/common-lib";
-import { Graphics, MouseEvent, Text } from "@thegraid/easeljs-module";
+import { Graphics, Text } from "@thegraid/easeljs-module";
 import { stopPropagation, textWidth } from "./createjs-functions.js";
 import { Binding, KeyBinder, KeyScope } from "./key-binder.js";
+import type { NamedObject } from "./named-container.js";
 import { PaintableShape, TextInRect, type TextInRectOptions, type TextStyle } from "./paintable.js";
 
 /** a Container with a [rectangle] Shape and a Text.
@@ -57,7 +58,7 @@ export class EditBox extends TextInRect implements TextStyle {
     this.cmark.setBounds(0, 0, 1, this.fontSize)
     // this.cmark.cache(-1, 0, 2, this.fontSize + 1) // extra pixel border?
     this.addChild(this.cmark)
-    this.cmark[S.Aname] = 'cursor'
+    ;(this.cmark as NamedObject).Aname = 'cursor'
   }
   // initially no keymap, lastFunc; onFocus informs if we gain/lose focus:
   keyScope: KeyScope = { onFocus: (f: boolean) => this.onFocus(f) };
@@ -89,7 +90,7 @@ export class EditBox extends TextInRect implements TextStyle {
    * if you want additional click effects, will need to override/extend
    */
   clickToFocus() {
-    this.on(S.click, (ev: MouseEvent) => { 
+    this.on(S.click, (ev: Object) => { // (ev: MouseEvent)
       this.setFocus(true);   // will invoke this.keyScope.onFocus(true)
       stopPropagation(ev);
     })
@@ -107,13 +108,13 @@ export class EditBox extends TextInRect implements TextStyle {
     KeyBinder.keyBinder.setFocus(f ? this.keyScope : KeyBinder.keyBinder);
     // if not a stage listener, add it:
     const EB_unfocus = 'EditBox.unfocus'
-    if (this.stage && !this.stage[EB_unfocus]) {
+    if (this.stage && !(this.stage as any)[EB_unfocus]) {
       // click any other DisplayObject on stage to unfocus this editbox.
       // record and save the on-listener function:
       const thus = this;
-      const unFocus = this.stage.on(S.click, (ev: MouseEvent) => this.setFocus(false), thus, false, null, true)
-      unFocus[S.Aname] = EB_unfocus;
-      this.stage[EB_unfocus] = unFocus;
+      const unFocus = this.stage.on(S.click, (mouseEvent: Object) => this.setFocus(false), thus, false, null, true);
+      (unFocus as any)[S.Aname] = EB_unfocus;
+      (this.stage as any)[EB_unfocus] = unFocus;
     }
   }
 

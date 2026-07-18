@@ -135,7 +135,7 @@ export class PaintableShape extends Shape implements Paintable {
       super.setBounds(x, y, w, h);
       if (cached) this.cache(x, y, w, h); // recache if previously cached
     } else {
-      super.setBounds(x as any as number, y, width, height);
+      super.setBounds(x!, y, width, height);
     }
   }
 
