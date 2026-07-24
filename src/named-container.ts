@@ -29,6 +29,8 @@ export class NamedContainer extends Container implements NamedObject {
   /** re-cache Container when children have changed size or visibility.
    *
    * uncache(), setBoundsNull(), setBounds(getBounds), maybe cache(scale)
+   * 
+   * @param scale for the cached image (1); if 0 then uncache & setBounds, but do not cache.
    */
   reCache(scale = 1) {
     if (this.cacheID) this.uncache();
