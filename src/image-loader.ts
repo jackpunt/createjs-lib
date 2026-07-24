@@ -23,31 +23,36 @@ export class ImageLoader {
     const url = `${this.root}${fname}.${ext}`;
     //console.log(stime(`image-loader: try loadImage`), url)
     const fileRes = (res: (value: HTMLImageElement | PromiseLike<HTMLImageElement>) => void, rej: (reason?: any) => void) => {
+      // img.src = url;
       const img: HTMLImageElement = new Image();
       img.onload = (evt => {
         (img as NamedObject).Aname = fname;
         this.imap.set(fname, img);  // record image as loaded!
         res(img);
       });
-      img.onerror = ((err) => rej(`failed to load ${url} -> ${err}`));
+      img.onerror = (err) => rej(`failed to load ${url} -> ${err}`);
       img.src = url; // start loading
     }
 
     const inlineRes = (res: (value: HTMLImageElement | PromiseLike<HTMLImageElement>) => void, rej: (reason?: any) => void) => {
       const imageId = url.replace(/[\/\.]/g, '_');
       // docImg has lazy-loading, so will not resolve until we provoke it:
+      // find base64 image data in app.component.html:
       const docImg = document.getElementById(imageId) as HTMLImageElement;
       if (!docImg) {
         rej(new Error(`Element with id "${imageId}" not found in DOM.`));
       }
-      const img = new Image();
-      this.imap.set(fname, img); // HTMLImageElement that will be resolved!
 
+      // img.src = docImg.src
       // The promise resolves with the fully loaded image instance, guaranteeing dimensions are populated
-      img.onload = () => res(img);
-      img.onerror = () => rej(new Error(`Failed to decode inline image data for id "${imageId}".`));
-      // Setting src to the base64 source string initiates browser decoding
-      img.src = docImg.src;
+      const img = new Image();
+      img.onload = (evt) => {
+        (img as NamedObject).Aname = fname;
+        this.imap.set(fname, img);  // record image as loaded!
+        res(img);
+      }
+      img.onerror = (err) =>  rej(new Error(`Failed to decode inline data for "${imageId}"; ${err}`));
+      img.src = docImg.src;  // Setting src to the base64 source string initiates browser decoding
     }
 
     const res_rej = inline ? inlineRes : fileRes;
@@ -71,7 +76,7 @@ export class ImageLoader {
         return this.imap; // with allPromises resolved: images all loaded
       },
       (reason) => {
-        console.error(stime(this, `loadImages failed: ${reason}`));
+        console.error(stime(this, `.loadImages failed: ${reason}`));
         return this.imap;
       });
   }
