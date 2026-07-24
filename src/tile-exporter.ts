@@ -1,12 +1,12 @@
 import { Constructor, stime } from "@thegraid/common-lib";
-import { Container, DisplayObject } from "@thegraid/easeljs-module";
+import { DisplayObject } from "@thegraid/easeljs-module";
 import { ImageGrid, PageSpec, type GridSpec } from "./image-grid";
-import { NamedContainer } from "./named-container";
+import { NamedContainer, type NamedObject } from "./named-container";
 import { RectShape, type Paintable } from "./paintable";
 // end imports
 
 
-/** An exportable "Tile"; implemented by CardObject. */
+/** An exportable "Tile"; implemented by Claz. */
 export interface Tile extends DisplayObject {
   makeShape(size?: number): Paintable;
   makeBleed(bleed?: number): DisplayObject;
@@ -42,10 +42,11 @@ export class TileImpl extends NamedContainer implements Tile  {
 }
 
 /**
- * Claz has static if defined,
- * then rotateBack: number <of degrees of rotation> of backTile.
+ * Claz has static rotateBack; // typically: 180 
+ * 
+ * If defined, then rotate the back image: number <of degrees of rotation> of backTile.
  */
-interface Claz extends Constructor<Tile> {
+export interface Claz extends Constructor<Tile> {
   /** 0 => flip-on-horiz-axiz, 180 => flip-on-vert-axis, undefined => blank */
   rotateBack?: number | undefined; // static: indicates of a special Back tile is used
 }
@@ -68,27 +69,26 @@ export class TileExporter {
     return pageSpecs;
   }
 
-  /** rotate card to align with template orientation */
-  setOrientation(card: Tile, gridSpec: GridSpec, rot = 90) {
+  /** rotate Container(bleed, card) to align with template orientation */
+  setOrientation(card: DisplayObject, gridSpec: GridSpec, rot = 90) {
     const { width, height } = card.getBounds(), c_land = width > height;
     // determine if gridSpec area is treated as landscape:
     const t_land = gridSpec.land ?? (gridSpec.delx > gridSpec.dely);
     if (c_land !== t_land) {
       card.rotation += rot;
-      if (card.cacheID) card.updateCache()
+      // if (card.cacheID) card.updateCache(); // rotation does not effect the cached image.
     }
   }
 
   /** Compose tile = new claz(...args) with bleedShape = makeBleed(tile)
-   * @returns Container[bleedShape, tile]
+   * @returns NamedContainer[bleedShape, tile]
    */
   composeTile(claz: Claz, args: any[], gridSpec: GridSpec, back = false, edge: 'L' | 'R' | 'C' = 'C') {
-    const cont = new Container();
-
     const tile = new claz(...args);
-    this.setOrientation(tile, gridSpec);
+    const cont = new NamedContainer((tile as NamedObject).Aname ?? claz.name);
     const bleedShape = this.makeBleed(tile, gridSpec, back, edge)
     cont.addChild(bleedShape, tile);
+    this.setOrientation(cont, gridSpec); // tile & bleedShape are aligned, now rotate the Container to align with canvas grid
 
     return cont;
   }
@@ -97,8 +97,9 @@ export class TileExporter {
    * Make outer bleed for the given tile. Trim bounds if on L or R edge
    */
   makeBleed(tile: Tile, gridSpec: GridSpec, back: boolean, edge: 'L' | 'R' | 'C' = 'C') {
-    const bleed = gridSpec.bleed ?? 0;
+    const bleed = (gridSpec.bleed ?? 0) * (gridSpec.dpi ?? 1);
     const bleedShape = tile.makeBleed(bleed) // 0 or -10 to hide bleed
+    bleedShape.rotation = tile.rotation;
 
     if (gridSpec.trimLCR) { // for close-packed shapes, exclude bleed on C edges
       // trim bleedShape to base.bounds; allow extra on first/last column of row:
@@ -177,14 +178,13 @@ export class TileExporter {
       const frontObjs = split ? aryFront.slice(0, splitn) : aryFront;
       const backObjs = double ? aryBack : split ? aryFront.slice(splitn) : undefined;
       const canvasId = `canvas_P${pagen}`;
-      const pageSpec = { layoutSpec: gridSpec, frontObjs, backObjs };
+      const pageSpec: PageSpec = { layoutSpec: gridSpec, frontObjs, backObjs };
       if (open && (aryFront.length % perPage > 0)) {
         this.openSpec = pageSpec; this.openNt = nt;
         console.log(stime(this, `.makePage: DEFER canvasId=${canvasId}, pageSpec=`), pageSpec, nt);
         return; // do not add to pageSpecs
       }
       pageSpecs[pagen] = pageSpec; // append new pageSpec to pageSpecs[]
-      console.log(stime(this, `.makePage: canvasId=${canvasId}, pageSpec=`), pageSpec);
       this.imageGrid.makePage(pageSpec, canvasId);  // make canvas with images, but do not download [yet]
     })
     return pageSpecs;
