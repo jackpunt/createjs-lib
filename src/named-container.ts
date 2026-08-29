@@ -5,7 +5,9 @@ export type NamedObject = { name?: string; Aname?: string; };
 /**
  * Container with a name, you can set x,y in constructor.
  *
- * Includes setBoundsNull() -> setBounds(null, 0, 0, 0)
+ * Includes setBoundsNull() -> setBounds(null, 0, 0, 0) to remove previously set bounds.
+ * 
+ * Includes reCache() : computes new bounds and new cache.
  */
 export class NamedContainer extends Container implements NamedObject {
 

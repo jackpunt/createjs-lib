@@ -423,18 +423,25 @@ export class RectWithDisp extends NamedContainer implements Paintable {
    * The RectShape extends around (disp.getBounds() ?? { 0, 0, 10, 10 })
    * @param disp a DisplayObject
    * @param options
-   * * color [WHITE] of background RectShape.
-   * * border [5] extend RectShape around disp
-   * * corner [0] corner radius
+   * * bgColor: [WHITE] of background RectShape.
+   * * border: [5] extend RectShape around disp
+   * * corner: [0] corner radius
+   * * strokec: [''] outer stroke color
+   * * ss: stroke width for RectShape
    * @param cgf [rscgf] CGF for the RectShape
    */
   constructor(disp: DisplayObject, options: RectWithDispOptions, cgf?: CGF) {
     super('rectWithDisp');               // ISA new Container()
-    const { bgColor, border, corner } = { bgColor: C.WHITE, border: 5, corner: 0, ...options };
+    const { bgColor, border, corner, strokec, ss } = { bgColor: C.WHITE, border: 5, corner: 0, strokec: '', ss: 1, ...options };
+    this.rectShape = new RectShape({ x: 0, y: 0, w: 8, h: 8, r: 0, s: ss }, bgColor, strokec);
     if (cgf) this.rectShape._cgf = cgf;  // HasA RectShape & DisplayObject
     this.disp = disp;
     this.corner = corner;               // rectShape._cRad = corner
-    this.border = border;               // calc & setBounds (disp + border) -> rectShape -> this
+    if (typeof border == 'number') {
+      this.border = border;             // calc & setBounds (disp + border) -> rectShape -> this
+    } else {
+      this.borders = border;
+    }
     const rect = this.calcBounds();
     this.rectShape.setRectRad(rect);    // update XYWH
     this.paint(bgColor, true);            // set initial color, Graphics
@@ -442,7 +449,7 @@ export class RectWithDisp extends NamedContainer implements Paintable {
   }
 
   /** a RectShape using calcBounds[borders, disp], no strokec. */
-  rectShape: RectShape = new RectShape({ x: 0, y: 0, w: 8, h: 8, r: 0 }, C.WHITE, '');
+  rectShape: RectShape;
   /** DisplayObject displayed above a RectShape of color  */
   readonly disp: DisplayObject;
 
@@ -472,15 +479,16 @@ export class RectWithDisp extends NamedContainer implements Paintable {
   /** [dx0, dx1, dy0, dy1] are [left, right, top, bottom] margins */
   get borders(): [number, number, number, number] { return [this.dx0, this.dx1, this.dy0, this.dy1] }
   /** 
-   * set any of [dx0, dx1, dy0, dy1]
+   * set any of [dx0, dx1, dy0, dy1];  [left, right, above, below]
    * 
-   * Note: setBounds(undefined, 0, 0, 0) after adjusting borders 
+   * Note: includes a call to setBounds(undefined, 0, 0, 0);
    */
   set borders(db: [number | undefined, number | undefined, number | undefined, number | undefined]) {
     db[0] !== undefined && (this.dx0 = db[0]);
     db[1] !== undefined && (this.dx1 = db[1]);
     db[2] !== undefined && (this.dy0 = db[2]);
     db[3] !== undefined && (this.dy1 = db[3]);
+    this.setBounds(undefined, 0, 0, 0);
   }
 
   _corner: number = 0;
@@ -516,6 +524,9 @@ export class RectWithDisp extends NamedContainer implements Paintable {
 
   // Bounds = calcBounds (disp.bounds + border) -> rectShape._rect [& cRad] -> this._bounds
   /**
+   * Includes special treatment of setBounds(undefined, 0, 0, 0); 
+   * - which calcBounds(), setRectRad(), and use that as the new Bounds.
+   * 
    * Note: if you addChild() to this Container, setBounds(undefined) won't consider them
    * unless you override calcBounds() to do a Rectangle.union()
    */
@@ -525,8 +536,9 @@ export class RectWithDisp extends NamedContainer implements Paintable {
       this.uncache();
       const { x, y, w, h } = this.calcBounds();
       this.rectShape.setRectRad({ x, y, w, h }); // reshape & setBounds()
-      super.setBounds(x, y, w, h);        // save in this._bounds
-      if (cached) this.cache(x, y, w, h); // recache if previously cached
+      const ss = this.rectShape.strokec ? this.rectShape._sSiz+1 : 0;
+      super.setBounds(x - ss, y - ss, w + 2 * ss, h + 2 * ss);        // save in this._bounds
+      if (cached) this.cache(x - ss, y - ss, w + 2 * ss, h + 2 * ss); // recache if previously cached
     } else {
       super.setBounds(x as any as number, y, width, height);
     }
@@ -552,6 +564,8 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
    * * bgColor: [C.WHITE] color of background RectShape
    * * border: [.3] extend RectShape around Text; fraction of fontSize
    * * corner: [0] corner radius of background; fraction of fontSize
+   * * strokec: [''] outer border stroke (none)
+   * * ss: [1] stroke size if strokec is used
    * * fontSize: [defaultRadius/2] if label is a string
    * * textColor: [C.BLACK] initial text.color if label is a string (deprecated)
    * * textColors: [[C.BLACK, C.WHITE]] pick best contrast when paint(color); OR false to retain textColor
@@ -559,15 +573,17 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
    * textColor is retained when textColors == false or if paint() is not called.
    */
   constructor(label: Text | string, options: TextInRectOptions = {}, cgf?: CGF) {
-    const { fontSize, fontName, textColor, border, corner, bgColor } =
+    const { fontSize, fontName, textColor, border, corner, bgColor, strokec, ss } =
       { fontSize: F.defaultSize, 
         fontName: F.defaultFont, 
         textColor: C.BLACK, 
         border: .3, corner: 0, 
         bgColor: C.WHITE,
+        strokec: '',
+        ss: 1,
         ...options }
     const text = (typeof label === 'string') ? new CenterText(label, F.fontSpec(fontSize, fontName), textColor) : label;
-    super(text, { bgColor, border, corner }, cgf);  // ISA new Container()
+    super(text, { bgColor, border, corner, strokec, ss }, cgf);  // ISA new Container()
     this.textColors = (options.textColors === false) ? [] : (options.textColors ?? [C.black, C.white]);
     if (this.textColors.length > 0) {
       // wrap advice around rscgf to also select text.color:
@@ -603,10 +619,12 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
    * @param tb fraction of line height. 
    */
   override set border(tb: number) { super.border = tb; }
-  /** set all the borders, in per-LineHeight units */
-  override set borders(db) { super.borders = db; }
+  /** set any of the borders, in per-LineHeight units */
+  override set borders(db: [number | undefined, number | undefined, number | undefined, number | undefined]) { 
+    super.borders = db; 
+  }
   /** get all the borders, in pixel units; as used by calcBounds */
-  override get borders() { 
+  override get borders(): [number, number, number, number] { 
     const lh = this.label.getMeasuredLineHeight();
     const bb = super.borders
     return bb.map(d => d * lh) as [number, number, number, number]
@@ -636,11 +654,19 @@ export type TextStyle = {
   textAlign?: string, // rarely used
 }
 
-/** RectWithDispOptions */
+/** RectWithDispOptions
+ * - bgColor: fillc
+ * - border: extend rect & bounds
+ * - corner: rounded rect
+ * - strokec: outer border
+ * - ss: stroke width (if strokec is set)
+ */
 export type RectWithDispOptions = {
   bgColor?: string, 
-  border?: number,
+  border?: number | [number | undefined, number | undefined, number | undefined, number | undefined],
   corner?: number,
+  strokec?: string,
+  ss?: number,
 }
 
 export type TextInRectOptions = RectWithDispOptions & TextStyle & { textColors?: string[] | false };
