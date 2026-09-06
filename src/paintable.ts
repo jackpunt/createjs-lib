@@ -566,14 +566,16 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
    * * corner: [0] corner radius of background; fraction of fontSize
    * * strokec: [''] outer border stroke (none)
    * * ss: [1] stroke size if strokec is used
-   * * fontSize: [defaultRadius/2] if label is a string
+   * * fontSize: [F.defaultSize] if label is a string and no fontSpec
+   * * fontName: [F.defaultFont] if label is a string and no fontSpec
+   * * fontSpec: [F.fontSpec(fontSize, fontName)] if label is a string
    * * textColor: [C.BLACK] initial text.color if label is a string (deprecated)
    * * textColors: [[C.BLACK, C.WHITE]] pick best contrast when paint(color); OR false to retain textColor
    * 
    * textColor is retained when textColors == false or if paint() is not called.
    */
   constructor(label: Text | string, options: TextInRectOptions = {}, cgf?: CGF) {
-    const { fontSize, fontName, textColor, border, corner, bgColor, strokec, ss } =
+    const { fontSize, fontName, fontSpec, textColor, border, corner, bgColor, strokec, ss } =
       { fontSize: F.defaultSize, 
         fontName: F.defaultFont, 
         textColor: C.BLACK, 
@@ -582,7 +584,7 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
         strokec: '',
         ss: 1,
         ...options }
-    const text = (typeof label === 'string') ? new CenterText(label, F.fontSpec(fontSize, fontName), textColor) : label;
+    const text = (typeof label === 'string') ? new CenterText(label, fontSpec ?? F.fontSpec(fontSize, fontName), textColor) : label;
     super(text, { bgColor, border, corner, strokec, ss }, cgf);  // ISA new Container()
     this.textColors = (options.textColors === false) ? [] : (options.textColors ?? [C.black, C.white]);
     if (this.textColors.length > 0) {
@@ -650,6 +652,7 @@ export class TextInRect extends RectWithDisp implements Paintable, TextStyle {
 export type TextStyle = { 
   fontSize?: number, 
   fontName?: string, 
+  fontSpec?: string,
   textColor?: string,
   textAlign?: string, // rarely used
 }
@@ -693,7 +696,9 @@ export class UtilButton extends TextInRect {
    * * active: [false] supply true|false to activate(active, visible) including stage?.update()
    * * border: [.3] extend RectShape around Text; fraction of fontSize
    * * corner: [0] corner radius of background; fraction of fontSize
-   * * fontSize: [F.defaultSize] if label is a string
+   * * fontSize: [F.defaultSize] if label is a string and no fontSpec
+   * * fontName: [F.defaultFont] if label is a string and no fontSpec
+   * * fontSpec: [F.fontSpec(fontSize, fontName)]
    * * textColor: [C.BLACK] if label is a string
    * * textColors: [[C.BLACK, C.WHITE]] pick best contrast when paint(color); OR false
    * @param cgf [rscgf] CGF for the RectShape
