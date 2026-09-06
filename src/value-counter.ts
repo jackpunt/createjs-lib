@@ -1,4 +1,4 @@
-import { C, F, S, XY } from '@thegraid/common-lib';
+import { C, F, XY } from '@thegraid/common-lib';
 import { Container, Event, EventDispatcher, Text } from '@thegraid/easeljs-module';
 import { CenterText } from './center-text';
 import { NamedContainer } from './named-container.js';
@@ -25,18 +25,18 @@ export class ValueEvent extends Event {
 export class ValueCounter extends NamedContainer {
   static defaultSize = 16;
   color: string;        // backgroud color
-  box: PaintableShape;
-  _value: number | string;
+  box!: PaintableShape;
+  _value!: number | string;
   /** width of curently displayed ellipse */
   wide: number = 0; // set -1 to provoke newBox
 
   /** height of curently displayed ellipse */
-  high: number;
+  high!: number;
   /** font size in px */
   fontSize: number = ValueCounter.defaultSize;
-  fontName: string;
+  fontName!: string;
   fontSpec: string;
-  label: Text;
+  label!: Text;
   labelFontSize: number = ValueCounter.defaultSize;
   readonly text: Text;
 
@@ -168,6 +168,7 @@ export class ValueCounter extends NamedContainer {
     this.value = value;
   }
 
+  /** set this.value and update stage */
   updateValue(value: number | string) {
     this.value = value;
     this.stage?.update();
@@ -186,8 +187,10 @@ export class ValueCounter extends NamedContainer {
     this.x = offset.x;
     this.y = offset.y;
     if (!!target && !!type) {
-      let valff = valf ?? ((ve: ValueEvent) => ve.value as string | number);
-      target.on(type, ((ve: Event) => this.updateValue(valff(ve))), this)[S.Aname] = "counterValf";
+      const valff = valf ?? ((ve: ValueEvent) => ve.value as string | number);
+      const listnr = (ve: Object) => this.updateValue(valff(ve as ValueEvent));
+      listnr.Aname = 'counterValf';    // maybe unnecessary
+      target.addEventListener(type, listnr);
     }
   }
 }
