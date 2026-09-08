@@ -13,7 +13,7 @@ export class EditLines extends EditBox {
   /** beginning of line holding point (set by this.bol()) */
   bol0: number = 0;
   /** N lines of text displayed in box; N = floor(box.height / fontSize) */
-  dlines: string[];
+  dlines!: string[];
   /** current line of display holding point */
   linen: number = 0;
   /** postion of cmark: buf[point - col - 1] = '\n' */
@@ -172,7 +172,7 @@ export class EditLines extends EditBox {
 
   /** return col0 if lastFunc was upLine or downLine, else normal current this.col */
   get keyCol() {
-    return ([this.upLine, this.downLine].includes(this.keyScope.lastFunc)) ? this.col0 : this.col
+    return ([this.upLine, this.downLine].includes(this.keyScope.lastFunc!)) ? this.col0 : this.col
   }
   /** a Binding.func that uses/sets col0 for repeated calls */
   upLine() {

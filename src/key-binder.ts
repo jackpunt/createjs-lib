@@ -91,7 +91,7 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
   /** global map from e.keyCode to Binding {thisArg, func: BindFunc, argval}  */
   keymap: Keymap;
   /** last BindFunc invoked from this keymap. */
-  lastFunc: BindFunc
+  lastFunc?: BindFunc
   /** nothing special for us, but notify any listener */
   onFocus(focus: boolean) { }
   /** GLOBAL FOCUS: a keymap bound to a KeyScope object */
@@ -158,7 +158,7 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     return this.getKeyCode(KeyBinder.keyCode(char), bits); // numeric unicode for char (OR key)
   }
   /** event.key name -> numeric kcode. */
-  static keyCode(key: string): CharCode | undefined {
+  static keyCode(key: string): CharCode {
     return (key.length == 1) ? key.charCodeAt(0) : KeyBinder.key_keyCode[key]
   }
   /** event.code name -> numeric kcode. */
@@ -166,7 +166,7 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     let key = code.startsWith('Key') ? code.substring(3).toLowerCase() : code
     return KeyBinder.keyCode(key) // key can be 'Alt'
   }
-  static codeKey(kcode: KeyCode): KeyStr {
+  static codeKey(kcode: KeyCode): KeyStr | undefined {
     let keyCode = Object.entries(KeyBinder.key_keyCode).find(([key, code]) => code == kcode)
     return !!keyCode ? keyCode[0] : undefined
   }
@@ -281,7 +281,7 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
     return this._bindKey(this.getKeymap(scope), key, binding);
   }
 
-  getKeymap(scope: KeyScope): Keymap {
+  getKeymap(scope?: KeyScope): Keymap {
     if (!scope) return this.keymap
     let keymap = scope.keymap
     if (!keymap) scope.keymap = keymap = Array<Binding>()
@@ -316,10 +316,10 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
    * @param kcode extracted from KeyboardEvent, or synthesized from getKeyCodeFromChar(str)
    * @param e either a KeyboardEvent with .key, or the equivalent .key string
    */
-  dispatchKeyCode(kcode: KeyCode, keyStr?: KeyStr, e?: KeyboardEvent ): boolean {
+  dispatchKeyCode(kcode: KeyCode, keyStr: KeyStr, e?: KeyboardEvent ): boolean {
     let keymap: Keymap = this.getKeymap(this.focus)
     let plain = (kcode & (KEYUP | ALT | META | CTRL)) == 0  // may be named-char! (Space, Bel, Arrow*)
-    let bind: Binding = keymap[kcode] 
+    let bind: Binding | undefined = keymap[kcode] 
     // check regexs if kcode indicates keyDown [TODO: have a map of keyUp-Regexps]
     if (!bind && plain && !!keymap.regexs && keymap.regexs.length > 0) {
       let regexs = keymap.regexs
@@ -334,10 +334,10 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
       console.log(stime(this, ".dispatchKeyCode:"),
         { keyStr, bind, kcode, keymap: this.showBindings(keymap), regexs: keymap.regexs, focus: this.focus },
         e);
-    let rv: boolean;
+    let rv: boolean = false;
     if (!!bind && typeof (bind.func) == 'function') {
       const keyStr = this.keyCodeToString(kcode);
-      rv = bind.func.call(bind.thisArg, bind.argVal, keyStr) // false | undefined indicates preventDefault
+      rv = !!bind.func.call(bind.thisArg, bind.argVal, keyStr); // false | undefined indicates preventDefault
       if (rv !== true && e instanceof Event) e.preventDefault()
       this.focus.lastFunc = bind.func
     }
@@ -345,7 +345,7 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
   }
 
   showBindings(keymap: Keymap): string[] {
-    let showBind = (b: Binding) => `${this.keyCodeToString(b._kcode)}->{${b.thisArg}.${b.func.name}(${b.argVal})}`
+    let showBind = (b: Binding) => `${this.keyCodeToString(b._kcode!)}->{${b.thisArg}.${b.func.name}(${b.argVal})}`
     return (keymap as Binding[]).map(b => showBind(b))
   }
 
@@ -364,8 +364,8 @@ export class KeyBinder extends EventDispatcher implements KeyScope {
   private initListeners() {
     this.details && console.log(stime(this, ".initListeners: keyBinder="), this);
 
-    this.on("keydown", this.dispatchKey, this)[S.Aname] = "KeyBinder.dispatchKey"
-    this.on("keyup", this.dispatchKey, this)[S.Aname] = "KeyBinder.dispatchKey"
+    (this.on("keydown", this.dispatchKey, this) as any)[S.Aname] = "KeyBinder.dispatchKey";
+    (this.on("keyup", this.dispatchKey, this) as any)[S.Aname] = "KeyBinder.dispatchKey";
 
     // let mousein = (e) => {evtd.showevent("onFocus", e)};
     // this.addEventListener("mouseenter", mousein);
