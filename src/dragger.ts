@@ -396,9 +396,8 @@ export class Dragger {
       return;
     }
     // arrange for Release: 
-    if (dragData.clickToDrag) {
-        // ctd/stagemousemove needs 'click' [provide it now]
-      if (!!dragData.stagemousemove)
+    if (!!dragData.clickToDrag && !!dragData.stagemousemove) {
+        // ctd w/stagemousemove needs 'click' to drop [provide it now]
         this.invokeClickr(target); // releas stageDrag
     } else {
       // pressmove needs 'presup' [listen for it]
