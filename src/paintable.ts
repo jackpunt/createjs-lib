@@ -65,6 +65,8 @@ export type CGF = (color: string, g?: Graphics) => Graphics;
  * }
  * ...
  * ms.paint(red); --> ms.graphics = g.f(red) --> new CG(red);
+ * 
+ * Note: also extend and override getBounds(); to reflect the extent of the Graphics.
  */
 // The "origin story" was to create new Shapes without subclassing.
 // Just make a new PaintableShape with its CGF
@@ -161,12 +163,12 @@ export class PaintableShape extends Shape implements Paintable {
 
 /** an n-sided Polygon, tilted */
 export class PolyShape extends PaintableShape {
-  public rad = PaintableShape.defaultRadius;
-  public nsides = 4;
-  public pSize = 0;
-  public tilt = 0;
-  public fillc = C.grey;
-  public strokec = C.black;
+  public rad!: number;
+  public nsides!: number;
+  public pSize!: number;
+  public tilt!: number;
+  public fillc!: string;
+  public strokec!: string;
 
   /**
    * A regular equilateral Polygon Shape, may be tilted clockwise.
@@ -188,7 +190,8 @@ export class PolyShape extends PaintableShape {
     super((fillc) => this.pscgf(fillc), fillc, g0);
 
     this.nsides = nsides ?? 4;
-    this.rad = rad ?? PaintableShape.defaultRadius;
+    const defaultRadius = (this.constructor as typeof PolyShape).defaultRadius;
+    this.rad = rad ?? defaultRadius;
     this.pSize = pSize ?? 0;
     this.tilt = tilt ?? 0;
     this.fillc = fillc ?? C.grey;
@@ -213,8 +216,15 @@ export class PolyShape extends PaintableShape {
       super.setBounds(x, y, width, height)
     }
   }
+  override getBounds(): Rectangle {
+    return new Rectangle(this.x - this.rad, this.y - this.rad, 2 * this.rad, 2 * this.rad)
+  }
 }
 
+/**
+ * Abstract class: 
+ * extend and override getBounds()
+ */
 export class PathShape extends PaintableShape {
   /** array of [x, y] points */
   public points: [number, number][];
@@ -282,9 +292,7 @@ export class EllipseShape extends PaintableShape {
     }
   }
   override getBounds(): Rectangle {
-    const b = super.getBounds();
-    if (b) { return b }
-    return super.getBounds() ?? new Rectangle(this.x - this.radx, this.y - this.rady, 2 * this.radx, 2 * this.rady)
+     return new Rectangle(this.x - this.radx, this.y - this.rady, 2 * this.radx, 2 * this.rady)
   }
 }
 
@@ -363,8 +371,6 @@ export class RectShape extends PaintableShape {
   }
 
   override getBounds(): Rectangle {
-    const b = super.getBounds();
-    if (b) { return b; }
     const ssi = Math.ceil(this.strokec ? (this._sSiz ?? 0) : 0), sse = 2 * ssi; 
     return new Rectangle(Math.floor(this.x + this._rect.x - ssi), Math.floor(this.y + this._rect.y - ssi), Math.ceil(this._rect.w + sse), Math.ceil(this._rect.h + sse))
   }
