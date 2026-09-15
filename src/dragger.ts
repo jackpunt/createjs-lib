@@ -145,7 +145,7 @@ export class Dragger {
     let warn = false;    // override with conditional-breakpoint
     const nevt = event.nativeEvent;
     if (nevt?.buttons === 0 && warn) debugger; // WTF? why pressmove with buttons is up?
-    // if (nevt?.buttons !== 1) return;   // let someone else have it
+    if (nevt?.buttons !== 1) return;   // let someone else have it
     event.stopPropagation()
     if (data.dragStopped) return; // waiting for *real* click/pressup event. when buttons is up!
 
@@ -221,7 +221,7 @@ export class Dragger {
   clickr(event: MouseEvent, data: DragData) {
     if (event.nativeEvent.buttons !== 0) debugger;   // Assert: all buttons UP
     // D&D only with Left button: (note: Mac trackpad cannot switch buttons while pressed!)
-    // if (event.nativeEvent?.button !== 1) return;     // was left-button UP
+    if (event.nativeEvent?.button !== 0) return;     // was left-button UP
     // if (!data.clickToDrag) return;  // Not our problem. (let click bubble to someone who cares)
 
     // expect obj == e.currentTarget; the SC in phase-3
@@ -256,7 +256,8 @@ export class Dragger {
     const { target: obj, scope, dropfunc } = data;
     const dragInfo = data.dragInfo; // presumably something is dragging and dragInfo is set.
     if (!dragInfo) {
-      console.warn(stime(this, `.dropTarget: no dragInfo, no target`), data);
+      let warn = false;
+      warn && console.warn(stime(this, `.dropTarget: no dragInfo, no target`), data); // drag; stopDrag; upclick on target
       return;        // cannot proceed without dragInfo
     } else {
       dragInfo.event = event;  // e.nativeEvent holds button, ctrl/shift keys
@@ -266,10 +267,10 @@ export class Dragger {
     obj.rotation = dragInfo.rotation
     const dropCont = dragInfo.dropCont ?? dragInfo.srcCont; // user can set alt dropCont (CardContainer!)
     const ndx = (dropCont === dragInfo.srcCont) ? dragInfo.dropNdx : dropCont.numChildren;
+    const inx = obj.x, iny = obj.y ; // record for debugger
     if (dropCont) {
       // Drop obj onto Parent=srcCont in apparent position:
-      const inx = obj.x, iny = obj.y                    // record for debugger
-      obj.parent.localToLocal(obj.x, obj.y, dropCont, obj); // dragCont -> dropCont
+      obj.parent.localToLocal(inx, iny, dropCont, obj); // dragCont -> dropCont
       dropCont.addChildAt(obj, ndx); // transfer parentage from dragCont to dropCont
     } else {
       console.warn(stime(this, `.dropTarget: no dropCont for`), obj);
