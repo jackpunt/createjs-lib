@@ -33,11 +33,11 @@ export class ValueCounter extends NamedContainer {
   /** height of curently displayed ellipse */
   high!: number;
   /** font size in px */
-  fontSize: number = ValueCounter.defaultSize;
+  fontSize: number;
   fontName!: string;
   fontSpec: string;
   label!: Text;
-  labelFontSize: number = ValueCounter.defaultSize;
+  labelFontSize: number;
   readonly text: Text;
 
   /**
@@ -53,9 +53,12 @@ export class ValueCounter extends NamedContainer {
    * @param fontName [F.defaultFont]
    * @param textColors [undefined = [C.BLACK,C.WHITE]] for C.pickTextColor(color, textColors)]
    */
-  constructor(name: string, initValue: number | string = 0, color = C.coinGold, fontSize = ValueCounter.defaultSize, fontName?: string, textColors?: string[]) {
+  constructor(name: string, initValue: number | string = 0, color = C.coinGold, fontSize?: number, fontName?: string, textColors?: string[]) {
     super(name);
     this.color = color;
+    const defaultSize = (this.constructor as typeof ValueCounter).defaultSize;
+    this.fontSize = fontSize = fontSize ?? defaultSize;
+    this.labelFontSize = defaultSize;
     this.mouseEnabled = false;
     this.mouseChildren = false;
     this.fontSpec = F.fontSpec(fontSize, fontName);
