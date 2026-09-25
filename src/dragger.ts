@@ -37,7 +37,7 @@ const S_stagemousemove = 'stagemousemove'
 // but it elides the ", data?: any", so we use "as listener" to make typescript happy
 type listener = (e: Object, data?: any) => void;
 type OnHandler = Function
-type DnDFunc = (c: DisplayObject | Container, ctx?: DragInfo) => void
+export type DnDFunc = (c: DisplayObject | Container, ctx?: DragInfo) => void
 /** attached to each dragable DisplayObject. scope.dragfunc()/dropfunc()
  * 
  * while target is being dragged: 
@@ -145,7 +145,7 @@ export class Dragger {
     let warn = false;    // override with conditional-breakpoint
     const nevt = event.nativeEvent;
     if (nevt?.buttons === 0 && warn) debugger; // WTF? why pressmove with buttons is up?
-    if (nevt?.buttons !== 1) return;   // let someone else have it
+    if (nevt?.buttons !== 1 && !data.stagemousemove) return;   // let someone else have it
     event.stopPropagation()
     if (data.dragStopped) return; // waiting for *real* click/pressup event. when buttons is up!
 
@@ -330,9 +330,9 @@ export class Dragger {
   dispatchClick(target: DisplayObject) {
     let dragData = this.getDragData(target)
     let stage = target.stage, stageX = stage.mouseX, stageY = stage.mouseY
-    let mouseE = { button: 1, buttons: 0 } as NativeMouseEvent;
+    let nEvent = { button: 0, buttons: 0 } as NativeMouseEvent;
     // MouseEvent with faux .nativeEvent:
-    let event = new MouseEvent(S.click, false, true, stageX, stageY, mouseE, -1, true, stageX, stageY);
+    let event = new MouseEvent(S.click, false, true, stageX, stageY, nEvent, -1, true, stageX, stageY);
     target.dispatchEvent(event, target) // set dragData.dragInfo = newDragInfo()
     return dragData
   }
@@ -399,9 +399,9 @@ export class Dragger {
     // arrange for Release: 
     if (!!dragData.clickToDrag && !!dragData.stagemousemove) {
         // ctd w/stagemousemove needs 'click' to drop [provide it now]
-        this.invokeClickr(target); // releas stageDrag
+        this.invokeClickr(target); // release stageDrag
     } else {
-      // pressmove needs 'presup' [listen for it]
+      // pressmove needs 'pressup' [listen for it]
       dragData.dragStopped = true; // true: pressmove->return; undefined: pressmove->dragFunc
       // watch for mouseup, and cancel the drag status:
       target.on(S.pressup, this.pressup as any, this, true, dragData);
