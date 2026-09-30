@@ -345,7 +345,7 @@ export class Dragger {
   invokeClickr(target: DisplayObject) {
     let dragData = this.getDragData(target)
     let stage = target.stage, stageX = stage.mouseX, stageY = stage.mouseY
-    let mouseE = { button: 1, buttons: 0 } as NativeMouseEvent;
+    let mouseE = { button: 0, buttons: 0 } as NativeMouseEvent;
     // MouseEvent with faux .nativeEvent:
     let event = new MouseEvent(S.click, false, true, stageX, stageY, mouseE, -1, true, stageX, stageY);
     event.currentTarget = target;
